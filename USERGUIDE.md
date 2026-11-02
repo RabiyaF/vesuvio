@@ -113,7 +113,7 @@ All elements present in the sample **AND THE CELL** shall be mentioned in the **
 
 The **initial\_fitting\_parameters** gather the intensity, the width and centre of the NCP for each mass. The intensity should always be 1 and the centre 0.0. The initial value for the width must be greater than the minimum classical value (governed by thermal energy), which can be calculated with `VesuvioPeakPrediction`, from the Algorithms tab.
 
-![VesuvioPeakPrediction](./images/VesPeakPred.png)
+![VesuvioPeakPrediction](https://raw.githubusercontent.com/mantidproject/vesuvio/main/images/VesPeakPred.png)
 
 Select the **Classical** model and enter the measurement temperature in Kelvin. The resulting workspace should contain the 'RMS Momentum ($\text{Å}^{-1}$)'.
 
@@ -326,6 +326,6 @@ A list of recent runs of 'empties' (tank, CCR, cryostat, cells...) is shown belo
 
 Be aware that all runs from the 2024\_5 cycle present altered data in the backscattering, due to an offset angle of the gold foil wheel, resulting in the wrong foils covering some parts of the backward scattering detector bank. The runs below the separator line in the table above are affected by this issue. On the affected detectors, almost a third exhibit negative values due to faulty foil cycling.
 
-![BackScattDets](./images/Backscatt_detectors.png) ![BackNegValues](./images/back_neg_values.png)
+![BackScattDets](https://raw.githubusercontent.com/mantidproject/vesuvio/main/images/Backscatt_detectors.png) ![BackNegValues](https://raw.githubusercontent.com/mantidproject/vesuvio/main/images/back_neg_values.png)
 
 On the left, layout/map of the backscattering detectors, where almost a third exhibit negative values (Due to foil cycling). On the right, an example of the phenomenon with spectrum of detector number 118.
