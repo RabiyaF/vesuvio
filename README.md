@@ -21,16 +21,16 @@ Once you have a working version of Mantid, go to the `IPython` tab on the bottom
 
 Run `mamba install mantid/label/nightly::mvesuvio` followed by `!mvesuvio version` in the `IPython` tab:
 
-![linux ipython install](images/linux_ipython_install.png)
+![linux ipython install](https://raw.githubusercontent.com/mantidproject/vesuvio/main/images/linux_ipython_install.png)
 
 **WARNING: This command alone may not create the .mvesuvio folder in the home directory. This needs to be forced by running the command `!mvesuvio config` in the `IPython` editor. The command will output the configured *experiment directory* and *ip directory*.**
-![config output](<images/config_output.png>)
+![config output](https://raw.githubusercontent.com/mantidproject/vesuvio/main/images/config_output.png)
 
 **If you're on Windows:**
 
 Run `pip install mvesuvio` followed by `pip show mvesuvio` in the `IPython` tab:
 
-![windows ipython install](images/windows_ipython_install.png)
+![windows ipython install](https://raw.githubusercontent.com/mantidproject/vesuvio/main/images/windows_ipython_install.png)
 
 To do all the necessary setup, type:
 
@@ -54,7 +54,7 @@ https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html
 `mamba` is already installed on ADA.
 Open a terminal (Applications → System → Terminal) on **ADA**:
 
-![ada menu](images/ada_menu.png)
+![ada menu](https://raw.githubusercontent.com/mantidproject/vesuvio/main/images/ada_menu.png)
 
 Verify mamba is installed by running:
 
@@ -66,7 +66,7 @@ Now create a new *conda* environment in the terminal, for example I'll call it `
 
 `mamba create -n mantid-mvesuvio mantidworkbench mantid/label/nightly::mvesuvio`
 
-![ada mamba environment creation](<images/ada_mamba_create.png>)
+![ada mamba environment creation](https://raw.githubusercontent.com/mantidproject/vesuvio/main/images/ada_mamba_create.png)
 
 And activate the environment you created, by typing the following in the terminal:
 
@@ -76,7 +76,7 @@ You can now start Mantid with `mvesuvio` already installed by typing the followi
 
 `workbench`
 
-![ada mamba environment activation](<images/ada_mamba_activate.png>)
+![ada mamba environment activation](https://raw.githubusercontent.com/mantidproject/vesuvio/main/images/ada_mamba_activate.png)
 
 ## Updating versions
 
@@ -128,7 +128,7 @@ You can also see that the folder `mvesuvio/experiment_template` also contains an
 **IMPORTANT: To run a new sample with different inputs, you should *copy* the example folder `experiment_template` and place it in *any* folder of your choice outside `mvesuvio`. For providing the instrument parameters files, place them inside `mvesuvio/ip_files/`.**
 (You can change the directory of the instrument files too, consult next section).
 
-For a more detailed explanation on what the inputs in the `run_reduction.py` mean, read [USERGUIDE.md](./USERGUIDE.md)
+For a more detailed explanation on what the inputs in the `run_reduction.py` mean, read [USERGUIDE.md](https://github.com/mantidproject/vesuvio/blob/main/USERGUIDE.md)
 
 ## Tips and useful commands
 
