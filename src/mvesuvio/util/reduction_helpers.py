@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from mantid import AnalysisDataService
+import matplotlib.pyplot as plt
 from mantid.simpleapi import (
     mtd,
     Load,
@@ -10,19 +11,29 @@ from mantid.simpleapi import (
     SumSpectra,
     CropWorkspace,
     MaskDetectors,
+    DeleteWorkspaces,
     CreateEmptyTableWorkspace,
     DeleteWorkspace,
     SaveNexus,
     LoadVesuvio,
+    Divide,
+    Rebin,
+    ConvertToYSpace,
+    Integration,
+    CloneWorkspace,
+    WeightedMean,
+    AppendSpectra,
+    SaveAscii,
 )
 from mantid.kernel import logger
 import numpy as np
 import math
+import re
 from pathlib import Path
 
-from mvesuvio.globals import ModeRunning, ScatteringType, Tags
+from mvesuvio.globals import ModeRunning, ScatteringType, Tags, Masking
 from mvesuvio.util.files_manager import FilesManager
-from mvesuvio.util import general_helpers
+from mvesuvio.util import general_helpers, handle_config
 from mvesuvio.util.general_helpers import pass_data_into_ws, print_table_workspace, extractWS
 from mvesuvio.util.constraints_transport import serialize_constraints
 from mvesuvio.util import fitting_helpers
@@ -33,6 +44,11 @@ if TYPE_CHECKING:
     from mvesuvio.default_config.experiment_template.run_reduction import BackwardAnalysisInputs, ForwardAnalysisInputs
 
 import ntpath
+
+try:
+    plt.style.use(["ggplot", handle_config.get_plots_config_file()])
+except OSError:
+    pass
 
 
 def run_estimate_h_ratio(back_alg, front_alg, back_masses, back_chosen_mass_index, rtol, max_iter):
@@ -241,8 +257,6 @@ def init_analysis_algorithm(ws_name: str, inputs_class: type[BackwardAnalysisInp
         "MultipleScatteringOrder": int(inputs_class.multiple_scattering_order),
         "NumberOfEvents": int(inputs_class.multiple_scattering_number_of_events),
         "Constraints": serialize_constraints(inputs_class.constraints),
-        "ResultsPath": str(FilesManager.get_reduction_outputs_dir().absolute()),
-        "MinimalOutputFiles": inputs_class.minimal_output,
         "OutputMeansTable": " Final_Means",
     }
 
@@ -253,32 +267,97 @@ def init_analysis_algorithm(ws_name: str, inputs_class: type[BackwardAnalysisInp
     return alg
 
 
+def save_plots_from_outputs(output_ncp_group_name: str, output_directory: Path, minimal_output: bool = False):
+    if minimal_output:
+        return
+
+    data_workspace_name = output_ncp_group_name.removesuffix("_ncp_group")
+    if data_workspace_name == output_ncp_group_name:
+        raise ValueError(f"Expected an NCP output group, got {output_ncp_group_name!r}")
+
+    output_ncp_group = mtd[output_ncp_group_name]
+    ws_data_sum = mtd[data_workspace_name + "_sum"]
+    figure_directory = output_directory / "figures"
+    figure_directory.mkdir(parents=True, exist_ok=True)
+
+    fig, ax = plt.subplots(subplot_kw={"projection": "mantid"})
+    ax.errorbar(ws_data_sum, fmt="k.", label="Sum of spectra", elinewidth=1.5)
+
+    label_list = ["Sum of spectra"]
+    ws_fig_name = data_workspace_name + "_ncp_fits_sum"
+    CloneWorkspace(ws_data_sum, OutputWorkspace=ws_fig_name)
+
+    for ws_name in output_ncp_group.getNames():
+        if not ws_name.startswith(data_workspace_name + "_") or not ws_name.endswith("_ncp"):
+            continue
+
+        label = ws_name[len(data_workspace_name) + 1 : -len("_ncp")]
+        ws_sum = mtd[ws_name + "_sum"]
+        ax.plot(ws_sum, label=f"Sum of {label} profile")
+        label_list.append(f"Sum of {label} profile")
+        AppendSpectra(ws_fig_name, ws_sum, OutputWorkspace=ws_fig_name)
+
+    ax.set_xlabel("TOF")
+    ax.set_ylabel("Counts")
+    ax.set_title("Sum of NCP fits")
+    ax.legend()
+
+    plt.savefig(figure_directory / f"{data_workspace_name}_profiles_sum.pdf", bbox_inches="tight")
+    plt.close(fig)
+    SaveAscii(ws_fig_name, str(output_directory / f"{data_workspace_name}_profiles_sum.txt"), LogList=label_list)
+
+
+def save_results_from_outputs(
+    input_workspace_name: str,
+    output_ncp_group_name: str,
+    output_directory: Path,
+    minimal_output: bool = False,
+):
+    final_iteration_workspace_name = output_ncp_group_name.removesuffix("_ncp_group")
+    if final_iteration_workspace_name == output_ncp_group_name or not final_iteration_workspace_name.startswith(input_workspace_name + "_"):
+        raise ValueError(f"Expected an NCP output group for input workspace {input_workspace_name!r}, got {output_ncp_group_name!r}")
+
+    output_directory.mkdir(parents=True, exist_ok=True)
+    all_workspaces = [name for name in mtd.getObjectNames() if name.startswith(input_workspace_name + "_")]
+
+    if minimal_output:
+        final_prefix = final_iteration_workspace_name + "_"
+        for ws_name in all_workspaces:
+            if ws_name in (final_iteration_workspace_name + "_total_ncp", final_iteration_workspace_name + "_total_fse"):
+                SaveAscii(ws_name, str(output_directory / ws_name) + ".txt")
+            elif ws_name.startswith(final_prefix) and ws_name.endswith(("_fit_results", "_means")):
+                SaveAscii(ws_name, str(output_directory / ws_name) + ".txt")
+        return
+
+    for ws_name in all_workspaces:
+        if ws_name.endswith(("ncp", "fse", "initial_parameters", "means", "fit_results")):
+            SaveAscii(ws_name, str(output_directory / ws_name) + ".txt")
+        if ws_name[-1].isdigit():
+            SaveNexus(ws_name, str(output_directory / ws_name) + ".nxs")
+
+
 def crop_and_mask_workspace(ws_name, inputs_class: type[BackwardAnalysisInputs] | type[ForwardAnalysisInputs]):
     """Returns cloned and cropped workspace with modified name"""
 
-    # Skip if workspace not found in ADS
-    if not AnalysisDataService.doesExist(ws_name):
-        logger.warning(f"\n{ws_name} not found in ADS: Skipping cropping and masking ...\n")
-        return
+    match = re.fullmatch(r"\s*(\d+)\s*-\s*(\d+)\s*", inputs_class.detectors)
+    if match is None:
+        raise ValueError(f"Invalid detectors range: {inputs_class.detectors!r}")
+    first_detector, last_detector = map(int, match.groups())
 
-    first_detector, last_detector = [int(s) for s in inputs_class.detectors.split("-")]
-
-    # Read initial Spectrum number
-    ws = mtd[ws_name]
-    ws_first_detector = ws.getSpectrumNumbers()[0]
-    assert first_detector >= ws_first_detector, "Can't crop workspace, firstSpec < first spectrum in workspace."
-    first_idx = first_detector - ws_first_detector
-    last_idx = last_detector - ws_first_detector
-
-    ws_cropped = CropWorkspace(
+    CropWorkspace(
         InputWorkspace=ws_name,
-        StartWorkspaceIndex=first_idx,
-        EndWorkspaceIndex=last_idx,
+        StartWorkspaceIndex=mtd[ws_name].getIndexFromSpectrumNumber(first_detector),
+        EndWorkspaceIndex=mtd[ws_name].getIndexFromSpectrumNumber(last_detector),
         OutputWorkspace=ws_name,
     )
-    mask_time_of_flight_bins_with_zeros(ws_cropped, inputs_class.mask_time_of_flight_range)  # Used to mask resonance peaks
-    MaskDetectors(Workspace=ws_cropped, SpectraList=inputs_class.mask_detectors)
-    return ws_cropped
+    MaskDetectors(Workspace=ws_name, SpectraList=inputs_class.mask_detectors)
+
+    # NOTE: Did not use MaskBins or RemoveBins from Mantid because those
+    # algorithms act on histogram workspaces. Converting the workspace to
+    # histogram and then back to point data removes masked flag on the bins.
+    # Better to just set y data to zeros directly.
+    mask_time_of_flight_bins_with_zeros(ws_name, inputs_class)
+    return
 
 
 def load_input_ws(input_class: type[BackwardAnalysisInputs] | type[ForwardAnalysisInputs]):
@@ -425,35 +504,42 @@ def save_fitting_input_workspaces(
         ws_to_fit,
         analysis_inputs.range_for_rebinning_in_y_space,
     )
+
     ws_lighest_data, ws_lighest_ncp = fitting_helpers.isolate_lighest_mass_data(
         ws_to_fit,
         ws_to_fit_ncps,
         analysis_inputs.subtract_calculated_fse_from_data,
     )
 
+    ws_joy, ws_joy_avg = y_space_reduction(ws_lighest_data, ws_lighest_ncp, analysis_inputs)
+
     SaveNexus(ws_resolution, str(fitting_inputs_dir / f"{workspace_name}_ws_resolution.nxs"))
-    SaveNexus(ws_lighest_data, str(fitting_inputs_dir / f"{workspace_name}_ws_lighest_data.nxs"))
-    SaveNexus(ws_lighest_ncp, str(fitting_inputs_dir / f"{workspace_name}_ws_lighest_ncp.nxs"))
+    SaveNexus(ws_joy, str(fitting_inputs_dir / f"{workspace_name}_joy.nxs"))
+    SaveNexus(ws_joy_avg, str(fitting_inputs_dir / f"{workspace_name}_joy_avg.nxs"))
 
 
-def mask_time_of_flight_bins_with_zeros(ws, maskTOFRange):
+def mask_time_of_flight_bins_with_zeros(ws_name, inputs_class: type[BackwardAnalysisInputs] | type[ForwardAnalysisInputs]):
     """
     Masks a given TOF range on ws with zeros on dataY.
     Leaves errors dataE unchanged, as they are used by later treatments.
-    Used to mask resonance peaks.
     """
 
-    if maskTOFRange is None:
-        return
+    if inputs_class.mask_time_of_flight_range:
+        ranges = []
+        for mask_range in inputs_class.mask_time_of_flight_range.split(","):
+            match = re.fullmatch(r"\s*(\d+(?:\.\d*)?)\s*(?:-\s*(\d+(?:\.\d*)?))?\s*", mask_range)
+            if match is None:
+                raise ValueError(f"Invalid mask_time_of_flight_range: {inputs_class.mask_time_of_flight_range!r}")
+            x_min, x_max = match.groups()
+            ranges.append((float(x_min), float(x_max) if x_max is not None else float(x_min)))
 
-    dataX, dataY, dataE = extractWS(ws)
-
-    ranges = [r.split("-") for r in maskTOFRange.replace(" ", "").split(",")]
-    for r in ranges:
-        mask = (dataX >= float(r[0])) & (dataX <= float(r[-1]))
-        dataY[mask] = 0
-
-    pass_data_into_ws(dataX, dataY, dataE, ws)
+        ws = mtd[ws_name]
+        for i in range(ws.getNumberHistograms()):
+            x = ws.dataX(i)
+            masked = np.zeros(x.shape, dtype=bool)
+            for x_min, x_max in ranges:
+                masked |= (x >= x_min) & (x <= x_max)
+            ws.mutableY(i)[masked] = 0
     return
 
 
@@ -504,3 +590,138 @@ def create_profiles_table(name, ai):
 
     print_table_workspace(table)
     return table
+
+
+def y_space_reduction(wsTOF, ws_ncp, inputs: type[BackwardAnalysisInputs] | type[ForwardAnalysisInputs]):
+    """Seperate procedures depending on masking specified."""
+    mass0 = inputs.masses[0]
+    ncp = ws_ncp.extractY()
+
+    rebin_pars = inputs.range_for_rebinning_in_y_space
+
+    if inputs.mask_time_of_flight_range and inputs.mask_zeros_with == Masking.NCP:
+        wsTOF = replace_zeros_with_ncp(wsTOF, ncp)
+
+    ws_joy = ConvertToYSpace(wsTOF, Mass=mass0, OutputWorkspace=wsTOF.name() + "_joy")
+
+    if inputs.mask_time_of_flight_range and inputs.mask_zeros_with == Masking.NAN:
+        # NOTE: Technically this rebin is general and gives the same result as Rebin when
+        # no zeros are present in dataY, but I didn't make this the default path
+        # because it can be confusing.
+        ws_joy_rebin = rebin_masked_weighted(ws_joy, rebin_pars, "_rebin")
+    else:
+        ws_joy_rebin = Rebin(InputWorkspace=ws_joy, Params=rebin_pars, OutputWorkspace=ws_joy.name() + "_rebin")
+
+    Integration(ws_joy_rebin, OutputWorkspace="temp_integral")
+    ws_joy_rebin = Divide(LHSWorkspace=ws_joy_rebin, RHSWorkspace="temp_integral", OutputWorkspace=ws_joy_rebin.name() + "_norm")
+
+    # Weighted average over spectra
+    ws_joy_rebin_avg = SumSpectra(
+        InputWorkspace=ws_joy_rebin, WeightedSum=True, MultiplyBySpectra=False, OutputWorkspace=ws_joy_rebin.name() + "_avg"
+    )
+
+    if inputs.do_symmetrisation:
+        ws_joy_rebin_avg = symmetrize_weighted_mean(ws_joy_rebin_avg)
+
+    DeleteWorkspace("temp_integral")
+    return ws_joy_rebin, ws_joy_rebin_avg
+
+
+def rebin_masked_weighted(ws_joy, rebin_pars, suffix):
+    """
+    Rebins y-space data with masked (zero) points using Mantid Rebin on weighted sums.
+    With w=1/E^2 (w=0 for masked points), Rebin gives sum(f*w*Y) and sum(f*w), where f is the
+    overlap width of the new and old bin divided by the old bin width. Masked points therefore
+    do not contribute.
+    Rebin propagates errors as E^2 = sum(f * E_old^2) (not f^2). Passing E_old=sqrt(w) with the
+    w*Y values then gives var(w*Y sum) = sum(f * w), so that
+    var(mean) = sum(f * w) / sum(f * w)^2 = 1 / sum(f * w).
+    This is exact for f=1 and slightly conservative for partially overlapping bins, where f^2 < f.
+    Returns the per spectrum workspace and the workspace averaged over spectra.
+    """
+    dataX, dataY, dataE = extractWS(ws_joy)
+
+    # Masked points can be 0 or NaN, in either dataY, dataE or dataX
+    valid = (dataY != 0) & np.isfinite(dataY) & np.isfinite(dataE) & np.isfinite(dataX)
+    dataY = np.where(valid, dataY, 0)  # Avoids 0 * NaN
+    dataE = np.where(valid, dataE, 0)
+
+    valid &= dataE > 0
+    weights = np.zeros(dataY.shape)
+    weights[valid] = 1 / np.square(dataE[valid])
+
+    CloneWorkspace(InputWorkspace=ws_joy, OutputWorkspace="temp_wy")
+    pass_data_into_ws(dataX, weights * dataY, np.sqrt(weights), mtd["temp_wy"])
+    Rebin(InputWorkspace="temp_wy", Params=rebin_pars, OutputWorkspace="temp_wy")
+
+    CloneWorkspace(InputWorkspace=ws_joy, OutputWorkspace="temp_w")
+    pass_data_into_ws(dataX, weights, np.zeros_like(weights), mtd["temp_w"])
+    Rebin(InputWorkspace="temp_w", Params=rebin_pars, OutputWorkspace="temp_w")
+
+    wy = mtd["temp_wy"].extractY()
+    var = np.square(mtd["temp_wy"].extractE())
+    w = mtd["temp_w"].extractY()
+    dataX_rebin = mtd["temp_wy"].extractX()
+
+    # Spectra in y space, one dataY point per bin of each spectrum
+    non_empty = w > 0
+    safe = np.where(non_empty, w, 1)
+    specY = np.where(non_empty, wy / safe, 0)
+    specE = np.where(non_empty, np.sqrt(var) / safe, 0)
+
+    # Use CloneWokspace to copy correct metadata
+    ws_rebin = CloneWorkspace(InputWorkspace="temp_wy", OutputWorkspace=ws_joy.name() + suffix)
+    pass_data_into_ws(dataX_rebin, specY, specE, ws_rebin)
+
+    DeleteWorkspaces(["temp_wy", "temp_w"])
+    return ws_rebin
+
+
+def replace_zeros_with_ncp(ws, ncp):
+    """
+    Replaces columns of bins with zeros on dataY with NCP provided.
+    """
+    dataX, dataY, dataE = extractWS(ws)
+    mask = np.all(dataY == 0, axis=0)  # Masked Cols
+
+    dataY[:, mask] = ncp[:, mask[: ncp.shape[1]]]  # mask of ncp adjusted for last col present or not
+
+    ws_mask = CloneWorkspace(ws, OutputWorkspace=ws.name() + "_ncpmask")
+    pass_data_into_ws(dataX, dataY, dataE, ws_mask)
+    SumSpectra(ws_mask, OutputWorkspace=ws_mask.name() + "_sum")
+    return ws_mask
+
+
+def symmetrize_weighted_mean(ws):
+    """
+    Symmetrizes workspace using Mantid WeightedMean on two workspaces:
+    one with the lhs of zero reflected onto the rhs and one with the rhs reflected onto the lhs.
+    Needs to have symmetric binning.
+    """
+    dataX, dataY, dataE = extractWS(ws)
+    np.testing.assert_allclose(dataX, -np.flip(dataX, axis=1), atol=1e-8, err_msg="symmetrisatino range is not symmetric around zero.")
+
+    nbins = dataY.shape[1]
+    half = nbins // 2
+    right = slice(nbins - half, nbins)  # Excludes central point when odd
+    left = slice(0, half)
+
+    # lhs reflected onto rhs
+    yL, eL = dataY.copy(), dataE.copy()
+    yL[:, right] = np.flip(dataY, axis=1)[:, right]
+    eL[:, right] = np.flip(dataE, axis=1)[:, right]
+
+    # rhs reflected onto lhs
+    yR, eR = dataY.copy(), dataE.copy()
+    yR[:, left] = np.flip(dataY, axis=1)[:, left]
+    eR[:, left] = np.flip(dataE, axis=1)[:, left]
+
+    ws_lhs = CloneWorkspace(ws, OutputWorkspace="temp_lhs_reflected")
+    pass_data_into_ws(dataX, yL, eL, ws_lhs)
+    ws_rhs = CloneWorkspace(ws, OutputWorkspace="temp_rhs_reflected")
+    pass_data_into_ws(dataX, yR, eR, ws_rhs)
+
+    # Weighted mean of lhs and rhs
+    ws_sym = WeightedMean(InputWorkspace1=ws_lhs, InputWorkspace2=ws_rhs, OutputWorkspace=ws.name() + "_sym")
+    DeleteWorkspaces(["temp_lhs_reflected", "temp_rhs_reflected"])
+    return ws_sym

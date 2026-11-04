@@ -224,3 +224,21 @@ class TestHandleConfig(unittest.TestCase):
                 handle_config.refresh_config_dir_and_contents()
 
             self.assertFalse(Path(tempdir, "ip_files", "__init__.py").exists())
+
+    def test_copy_config_entry_rejects_unknown_entry_type(self):
+        with self.assertRaisesRegex(ValueError, "Unknown config entry type: unknown"):
+            handle_config._copy_config_entry("entry", "unknown", overwrite=False)
+
+    def test_is_cache_set_returns_true_when_input_path_is_configured(self):
+        with patch.object(handle_config, "read_cached_var", return_value="/inputs") as read_cached_var:
+            result = handle_config.is_cache_set()
+
+        self.assertTrue(result)
+        read_cached_var.assert_called_once_with("caching.inputs", False)
+
+    def test_is_cache_set_returns_false_when_input_path_is_empty(self):
+        with patch.object(handle_config, "read_cached_var", return_value="") as read_cached_var:
+            result = handle_config.is_cache_set()
+
+        self.assertFalse(result)
+        read_cached_var.assert_called_once_with("caching.inputs", False)

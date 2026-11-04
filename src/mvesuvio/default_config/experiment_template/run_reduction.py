@@ -1,10 +1,10 @@
 import mvesuvio
-from mantid.simpleapi import Rebin, Scale, Minus, SetSample, SaveAscii
+from mantid.simpleapi import Rebin, Scale, Minus, SetSample, SaveAscii, mtd
 from pathlib import Path
 import math
 from typing import Dict
 from mvesuvio import ConfigArgInputs
-from mvesuvio.globals import Mode
+from mvesuvio.globals import Masking, Mode
 from mvesuvio.util import general_helpers
 from mvesuvio.util import reduction_helpers
 from mvesuvio.util.files_manager import FilesManager
@@ -108,9 +108,14 @@ class BackwardAnalysisInputs:
     constraints = {"type": "eq", "fun": lambda par: (RECOIL_WEIGHT["C"] * par[0] - RECOIL_WEIGHT["O"] * par[3])}
 
     number_of_iterations_for_corrections = 0  # 4
-    # Y-space derived inputs are prepared at end of reduction for fitting.
-    range_for_rebinning_in_y_space = "-25, 0.5, 25"
+    # Y-space reduction is performed at the end of reduction and its outputs are used by run_fitting.py
+    range_for_rebinning_in_y_space = "-25, 0.5, 25"  # Needs to be symetric, usually bounds = 10 x lowest mass (a.m.u.)
     subtract_calculated_fse_from_data = True
+    do_symmetrisation = False
+    # Type of masking
+    # Masking.NAN: Zeros in workspace being fit are ignored
+    # Masking.NCP: Zeros in workspace being fit are replaced by the fitted neutron compton profile
+    mask_zeros_with = Masking.NAN
     do_multiple_scattering_correction = True
     # Exact recoil ratio used to estimate Hydrogen intensity
     chosen_mass_index = 0  # C is indexed 0 in backward masses list
@@ -164,9 +169,14 @@ class ForwardAnalysisInputs:
     constraints = {"type": "eq", "fun": lambda par: (RECOIL_WEIGHT["C"] * par[3] - RECOIL_WEIGHT["O"] * par[6])}
 
     number_of_iterations_for_corrections = 1  # 4
-    # Y-space derived inputs are prepared at end of reduction for fitting.
-    range_for_rebinning_in_y_space = "-25, 0.5, 25"
+    # Y-space reduction is performed at the end of reduction and its outputs are used by run_fitting.py
+    range_for_rebinning_in_y_space = "-25, 0.5, 25"  # Needs to be symetric, usually bounds = 10 x lowest mass (a.m.u.)
     subtract_calculated_fse_from_data = True
+    do_symmetrisation = False
+    # Type of masking
+    # Masking.NAN: Zeros in workspace being fit are ignored
+    # Masking.NCP: Zeros in workspace being fit are replaced by the fitted neutron compton profile
+    mask_zeros_with = Masking.NAN
     do_multiple_scattering_correction = True
     transmission_guess = 0.9  # T : Experimental value from VesuvioTransmission
     multiple_scattering_order = 2
@@ -208,6 +218,10 @@ def run_reduction(configure_with_main: bool = True):
             ### End of User Editing Section ###
             back_input_ws = BackwardAnalysisInputs.name_of_subtracted_workspace
 
+        # Set sample geometry, used in MS corrections
+        SetSample(InputWorkspace=back_input_ws, Geometry=SAMPLE_SHAPE)
+        reduction_helpers.crop_and_mask_workspace(back_input_ws, BackwardAnalysisInputs)
+
     if ForwardAnalysisInputs.run_this_scattering_type:
         if ForwardAnalysisInputs.overwrite_analysis_input_workspace:
             front_input_ws = general_helpers.load_overwritten_workspace_if_specified(ForwardAnalysisInputs)
@@ -230,12 +244,10 @@ def run_reduction(configure_with_main: bool = True):
             ### End of User Editing Section ###
             front_input_ws = ForwardAnalysisInputs.name_of_subtracted_workspace
 
-    # Set sample shape
-    SetSample(InputWorkspace=back_input_ws, Geometry=SAMPLE_SHAPE)
-    SetSample(InputWorkspace=front_input_ws, Geometry=SAMPLE_SHAPE)
+        ## Set sample geometry, used in MS corrections
+        SetSample(InputWorkspace=front_input_ws, Geometry=SAMPLE_SHAPE)
+        reduction_helpers.crop_and_mask_workspace(front_input_ws, ForwardAnalysisInputs)
 
-    reduction_helpers.crop_and_mask_workspace(back_input_ws, BackwardAnalysisInputs)
-    reduction_helpers.crop_and_mask_workspace(front_input_ws, ForwardAnalysisInputs)
     back_alg = reduction_helpers.init_analysis_algorithm(back_input_ws, BackwardAnalysisInputs)
     front_alg = reduction_helpers.init_analysis_algorithm(front_input_ws, ForwardAnalysisInputs)
 
@@ -265,6 +277,29 @@ def run_reduction(configure_with_main: bool = True):
     general_helpers.make_summarised_log_file()
     reduction_helpers.save_fitting_input_workspaces(BackwardAnalysisInputs)
     reduction_helpers.save_fitting_input_workspaces(ForwardAnalysisInputs)
+    for analysis_alg, input_workspace_name, inputs_class in (
+        (back_alg, back_input_ws, BackwardAnalysisInputs),
+        (front_alg, front_input_ws, ForwardAnalysisInputs),
+    ):
+        if analysis_alg is not None:
+            output_ncp_group_name = analysis_alg.getPropertyValue("OutputNCPGroup")
+            output_directory = FilesManager.get_reduction_outputs_dir()
+            reduction_helpers.save_results_from_outputs(
+                input_workspace_name=input_workspace_name,
+                output_ncp_group_name=output_ncp_group_name,
+                output_directory=output_directory,
+                minimal_output=inputs_class.minimal_output,
+            )
+            # Plots are saved for every iteration, not only the final one
+            iteration_ncp_groups = sorted(
+                name for name in mtd.getObjectNames() if name.startswith(input_workspace_name + "_") and name.endswith("_ncp_group")
+            )
+            for iteration_ncp_group in iteration_ncp_groups:
+                reduction_helpers.save_plots_from_outputs(
+                    output_ncp_group_name=iteration_ncp_group,
+                    output_directory=output_directory,
+                    minimal_output=inputs_class.minimal_output,
+                )
 
 
 if (__name__ == "__main__") or (__name__ == "mantidqt.widgets.codeeditor.execution"):

@@ -1,7 +1,8 @@
 import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-from mvesuvio.main import _set_up_parser, _setup_config
+from unittest.mock import MagicMock, patch
+
+from mvesuvio.main import _set_up_parser, _setup_and_parse_args, _setup_config
 
 
 class TestParser(unittest.TestCase):
@@ -41,6 +42,12 @@ class TestParser(unittest.TestCase):
     def test_set_up_parser_requires_command(self):
         with self.assertRaises(SystemExit):
             self.parser.parse_args([])
+
+    @patch("sys.argv", ["mvesuvio", "version"])
+    def test_setup_and_parse_args(self):
+        args = _setup_and_parse_args()
+
+        self.assertEqual(args.command, "version")
 
 
 class TestSetupConfig(unittest.TestCase):
@@ -152,8 +159,34 @@ class TestSetupConfig(unittest.TestCase):
         # ConfigService.setString should be called multiple times
         self.assertGreater(mock_config_service.setString.call_count, 0)
 
+    @patch("mvesuvio.main.handle_config")
+    @patch("mantid.kernel.ConfigService")
+    def test_setup_config_sets_defaults_when_cache_is_not_set(self, mock_config_service, mock_handle_config):
+        mock_handle_config.is_cache_set.return_value = False
+        mock_handle_config.read_cached_var.side_effect = ["/default/inputs.py", "/default/ip_folder"]
+
+        _setup_config(None)
+
+        mock_handle_config.set_default_config_vars.assert_called_once_with()
+        mock_handle_config.set_config_vars.assert_called_once_with(
+            {
+                "caching.inputs": "/default/inputs.py",
+                "caching.ipfolder": "/default/ip_folder",
+            }
+        )
+
 
 class TestMainFunction(unittest.TestCase):
+
+    @patch("mvesuvio.version", return_value="1.2.3")
+    def test_main_with_version_command(self, mock_version):
+        from mvesuvio.main import main
+
+        with patch("builtins.print") as mock_print:
+            main(manual_args=MagicMock(command="version"))
+
+        mock_version.assert_called_once_with()
+        mock_print.assert_called_once_with("1.2.3")
 
     @patch("mvesuvio.main._run_bootstrap")
     @patch("mvesuvio.main._run_analysis")
@@ -200,6 +233,18 @@ class TestMainFunction(unittest.TestCase):
         # Config setup should be called before run analysis
         mock_setup_config.assert_called_once_with(None)
         mock_run_analysis.assert_called_once()
+
+    @patch("mvesuvio.main._run_bootstrap")
+    @patch("mvesuvio.main._setup_config")
+    def test_main_with_bootstrap_command(self, mock_setup_config, mock_run_bootstrap):
+        from mvesuvio.main import main
+
+        mock_args = MagicMock(command="bootstrap")
+
+        main(manual_args=mock_args)
+
+        mock_setup_config.assert_called_once_with(None)
+        mock_run_bootstrap.assert_called_once_with(mock_args)
 
 
 class TestRunAnalysis(unittest.TestCase):
@@ -266,5 +311,4 @@ class TestRunBootstrap(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
 

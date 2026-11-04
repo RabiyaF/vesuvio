@@ -34,6 +34,7 @@ class TestHRatioRoutine(unittest.TestCase):
 
     def tearDown(self) -> None:
         AnalysisDataService.clear()
+        FilesManager._experiment_dir = None
 
     def test_h_ratio_routine(self):
         reduction_script = handle_config.USER_CONFIG_PATH / "experiment_template" / "run_reduction.py"
@@ -47,6 +48,10 @@ class TestHRatioRoutine(unittest.TestCase):
         namespace["BackwardAnalysisInputs"].intensity_ratio_of_hydrogen_to_chosen_mass = 0
         namespace["BackwardAnalysisInputs"].constraints = ()
         namespace["ForwardAnalysisInputs"].constraints = ()
+        namespace["BackwardAnalysisInputs"].do_symmetrisation = False
+        namespace["ForwardAnalysisInputs"].do_symmetrisation = False
+        namespace["BackwardAnalysisInputs"].mask_time_of_flight_range = None
+        namespace["ForwardAnalysisInputs"].mask_time_of_flight_range = None
         with patch("builtins.input", return_value=""):
             namespace["run_reduction"]()
 

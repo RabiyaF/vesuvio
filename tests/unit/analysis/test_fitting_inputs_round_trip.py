@@ -69,21 +69,28 @@ class TestFittingInputsRoundTrip(unittest.TestCase):
         ForwardAnalysisInputs.overwrite_analysis_input_workspace = ""
         ForwardAnalysisInputs.number_of_iterations_for_corrections = 0
         ForwardAnalysisInputs.subtract_calculated_fse_from_data = False
+        ForwardAnalysisInputs.do_symmetrisation = False
+
+        def fake_y_space_reduction(ws_data, ws_ncp, inputs):
+            joy = CreateWorkspace(DataX=[0, 1, 2], DataY=[1, 2, 3], DataE=[1, 1, 1], NSpec=1, UnitX="TOF", OutputWorkspace=f"{ws_data.name()}_joy")
+            joy_avg = CreateWorkspace(DataX=[0, 1, 2], DataY=[1, 2, 3], DataE=[1, 1, 1], NSpec=1, UnitX="TOF", OutputWorkspace=f"{ws_data.name()}_joy_avg")
+            return joy, joy_avg
 
         with patch("mvesuvio.util.fitting_helpers.calculate_resolution", side_effect=self._mock_calculate_resolution):
             with patch("mvesuvio.util.fitting_helpers.VesuvioResolution") as resolution_mock:
-                reduction_helpers.save_fitting_input_workspaces(ForwardAnalysisInputs)
+                with patch.object(reduction_helpers, "y_space_reduction", side_effect=fake_y_space_reduction):
+                    reduction_helpers.save_fitting_input_workspaces(ForwardAnalysisInputs)
 
         resolution_mock.assert_called_once()
         self.assertEqual(resolution_mock.call_args.kwargs["Workspace"].name(), ws_name)
 
         AnalysisDataService.clear()
         self.assertTrue((FilesManager.get_fitting_inputs_dir() / f"{ws_name}_ws_resolution.nxs").exists())
-        self.assertTrue((FilesManager.get_fitting_inputs_dir() / f"{ws_name}_ws_lighest_data.nxs").exists())
-        self.assertTrue((FilesManager.get_fitting_inputs_dir() / f"{ws_name}_ws_lighest_ncp.nxs").exists())
+        self.assertTrue((FilesManager.get_fitting_inputs_dir() / f"{ws_name}_joy.nxs").exists())
+        self.assertTrue((FilesManager.get_fitting_inputs_dir() / f"{ws_name}_joy_avg.nxs").exists())
 
         load_saved_fitting_input_workspaces()
 
         self.assertTrue(AnalysisDataService.doesExist(f"{ws_name}_ws_resolution"))
-        self.assertTrue(AnalysisDataService.doesExist(f"{ws_name}_ws_lighest_data"))
-        self.assertTrue(AnalysisDataService.doesExist(f"{ws_name}_ws_lighest_ncp"))
+        self.assertTrue(AnalysisDataService.doesExist(f"{ws_name}_joy"))
+        self.assertTrue(AnalysisDataService.doesExist(f"{ws_name}_joy_avg"))

@@ -1,5 +1,5 @@
 from mvesuvio.analysis_fitting import FitInYSpace
-from mvesuvio.globals import FitModels, Masking
+from mvesuvio.globals import FitModels
 from mvesuvio.util import general_helpers
 from mvesuvio.util.files_manager import FilesManager
 from mantid.api import AnalysisDataService
@@ -34,9 +34,6 @@ else:
 class BackwardFittingInputs(BackwardAnalysisInputs):
     run_this_fitting_type = False
     show_plots = True
-    do_symmetrisation = False
-    subtract_calculated_fse_from_data = True
-    range_for_rebinning_in_y_space = "-25, 0.5, 25"  # Needs to be symetric, usually bounds = 10 x lowest mass (a.m.u.)
     # Fitting model options
     # FitModels.GAUSS: Single Gaussian
     # FitModels.GAUSS_CNTR: Single Gaussian with fixed center at zero
@@ -56,18 +53,11 @@ class BackwardFittingInputs(BackwardAnalysisInputs):
     # Either an integer less than the number of detectors
     # or option 'all', which does not form groups and fits all spectra simultaneously and individualy
     number_of_global_fit_groups = 4
-    # Type of masking
-    # Masking.NAN: Zeros in workspace being fit are ignored
-    # Masking.NCP: Zeros in workspace being fit are replaced by the fitted neutron compton profile
-    mask_zeros_with = Masking.NAN
 
 
 class ForwardFittingInputs(ForwardAnalysisInputs):
     run_this_fitting_type = True
     show_plots = True
-    do_symmetrisation = False
-    subtract_calculated_fse_from_data = True
-    range_for_rebinning_in_y_space = "-25, 0.5, 25"  # Needs to be symetric, usually bounds = 10 x lowest mass (a.m.u.)
     # Fitting model options
     # FitModels.GAUSS: Single Gaussian
     # FitModels.GAUSS_CNTR: Single Gaussian with fixed center at zero
@@ -87,10 +77,6 @@ class ForwardFittingInputs(ForwardAnalysisInputs):
     # Either an integer less than the number of detectors
     # or option 'all', which does not form groups and fits all spectra simultaneously and individualy
     number_of_global_fit_groups = 4
-    # Type of masking
-    # Masking.NAN: Zeros in workspace being fit are ignored
-    # Masking.NCP: Zeros in workspace being fit are replaced by the fitted neutron compton profile
-    mask_zeros_with = Masking.NAN
 
 
 def load_saved_fitting_input_workspaces() -> None:
@@ -128,12 +114,12 @@ def run_y_space_reduction_and_fit(fitting_inputs: type[BackwardFittingInputs] | 
 
     for candidate in ws_name_candidates:
         resolution_name = f"{candidate}_ws_resolution"
-        lightest_data_name = f"{candidate}_ws_lighest_data"
-        lightest_ncp_name = f"{candidate}_ws_lighest_ncp"
+        joy_name = f"{candidate}_joy"
+        joy_avg_name = f"{candidate}_joy_avg"
         if (
             AnalysisDataService.doesExist(resolution_name)
-            and AnalysisDataService.doesExist(lightest_data_name)
-            and AnalysisDataService.doesExist(lightest_ncp_name)
+            and AnalysisDataService.doesExist(joy_name)
+            and AnalysisDataService.doesExist(joy_avg_name)
         ):
             fitting_directory = FilesManager.get_fitting_outputs_dir()
             fitting_directory.mkdir(parents=True, exist_ok=True)
@@ -141,8 +127,8 @@ def run_y_space_reduction_and_fit(fitting_inputs: type[BackwardFittingInputs] | 
 
             FitInYSpace(
                 fitting_inputs,
-                mtd[lightest_data_name],
-                mtd[lightest_ncp_name],
+                mtd[joy_name],
+                mtd[joy_avg_name],
                 mtd[resolution_name],
                 outputs_dir=fitting_directory,
             ).run()
@@ -150,7 +136,7 @@ def run_y_space_reduction_and_fit(fitting_inputs: type[BackwardFittingInputs] | 
 
     logger.warning(
         "Could not find expected derived workspaces "
-        + ", ".join(f"({name}_ws_resolution, {name}_ws_lighest_data, {name}_ws_lighest_ncp)" for name in ws_name_candidates)
+        + ", ".join(f"({name}_ws_resolution, {name}_joy, {name}_joy_avg)" for name in ws_name_candidates)
         + ". Skipping fitting in Y-Space."
     )
     return False

@@ -1,4 +1,5 @@
 import unittest
+
 import dill
 
 from mvesuvio.util.constraints_transport import deserialize_constraints, serialize_constraints
@@ -22,3 +23,7 @@ class TestConstraintsTransport(unittest.TestCase):
         restored = deserialize_constraints(legacy_payload)
 
         self.assertEqual(restored[0]["fun"]([3, 0, 0, 1]), 0.5)
+
+    def test_unknown_registry_token_raises(self):
+        with self.assertRaisesRegex(RuntimeError, "Constraints token not found in registry: missing-token"):
+            deserialize_constraints("registry:missing-token")

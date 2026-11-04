@@ -35,7 +35,7 @@ class TestRunFittingPrecomputedInputs(unittest.TestCase):
                 DataE=[1, 1, 1],
                 NSpec=1,
                 UnitX="TOF",
-                OutputWorkspace=f"{ws_prefix}_ws_lighest_data",
+                OutputWorkspace=f"{ws_prefix}_joy",
             )
             CreateWorkspace(
                 DataX=[0, 1, 2],
@@ -43,7 +43,7 @@ class TestRunFittingPrecomputedInputs(unittest.TestCase):
                 DataE=[1, 1, 1],
                 NSpec=1,
                 UnitX="TOF",
-                OutputWorkspace=f"{ws_prefix}_ws_lighest_ncp",
+                OutputWorkspace=f"{ws_prefix}_joy_avg",
             )
 
             ForwardFittingInputs.number_of_iterations_for_corrections = 0

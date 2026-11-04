@@ -1,7 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import scipy
-from pathlib import Path
 from mantid.kernel import (
     StringListValidator,
     Direction,
@@ -30,12 +28,8 @@ from mantid.simpleapi import (
     DeleteWorkspaces,
     CreateWorkspace,
     GroupWorkspaces,
-    SaveAscii,
-    SaveNexus,
-    AppendSpectra,
 )
 
-from mvesuvio.util import handle_config
 from mvesuvio.util.analysis_helpers import (
     numerical_third_derivative,
     load_resolution,
@@ -49,10 +43,6 @@ from mvesuvio.util.general_helpers import print_table_workspace
 from mvesuvio.globals import ModeRunning, ScatteringType
 from mvesuvio.util.constraints_transport import deserialize_constraints
 
-try:
-    plt.style.use(["ggplot", handle_config.get_plots_config_file()])
-except OSError:
-    pass
 np.set_printoptions(suppress=True, precision=4, linewidth=200)
 
 NEUTRON_MASS = 1.008  # a.m.u.
@@ -108,13 +98,10 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
             doc="Whether running backward or forward scattering.",
         )
 
-        self.declareProperty(name="OutputDirectory", defaultValue="", doc="Directory where to save analysis results.")
         self.declareProperty(name="Constraints", defaultValue="", doc="Constraints to use during fitting profiles.")
         self.declareProperty(name="TransmissionGuess", defaultValue=-1.0, validator=FloatBoundedValidator(lower=0, upper=1))
         self.declareProperty(name="MultipleScatteringOrder", defaultValue=-1, validator=IntBoundedValidator(lower=0))
         self.declareProperty(name="NumberOfEvents", defaultValue=-1, validator=IntBoundedValidator(lower=0))
-        self.declareProperty(name="ResultsPath", defaultValue="", doc="Directory to store results, to be deleted later.")
-        self.declareProperty(name="MinimalOutputFiles", defaultValue=False, doc="Flag to set number of output files to minimum.")
         # Outputs
         self.declareProperty(
             TableWorkspaceProperty(name="OutputMeansTable", defaultValue="", direction=Direction.Output),
@@ -144,20 +131,13 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
         self._mode_running = self.getProperty("ModeRunning").value
         self._multiple_scattering_correction = self.getProperty("MultipleScatteringCorrection").value
         self._gamma_correction = self.getProperty("GammaCorrection").value
-        self._save_results_path = Path(self.getProperty("ResultsPath").value).absolute()
         self._chosen_index_for_h_ratio = self.getProperty("ChosenMassIndex").value
         self._h_ratio = self.getProperty("HRatioToChosenMass").value
         self._constraints = deserialize_constraints(self.getProperty("Constraints").value)
         self._profiles_table = self.getProperty("InputProfiles").value
-        self._minimal_output = self.getProperty("MinimalOutputFiles").value
 
         self._instrument_params = load_instrument_params(self._ip_file, self.getProperty("InputWorkspace").value.getSpectrumNumbers())
         self._resolution_params = load_resolution(self._instrument_params)
-
-        # Create paths if not there already
-        self._save_results_path.mkdir(parents=True, exist_ok=True)
-        self._save_figures_path = self._save_results_path / "figures"
-        self._save_figures_path.mkdir(parents=True, exist_ok=True)
 
         # Need to transform profiles table into parameter array for optimize.minimize()
         self._initial_fit_parameters = []
@@ -267,7 +247,6 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
             self._fit_neutron_compton_profiles()
 
             self._calculate_summed_workspaces()
-            self._save_plots()
             self._set_means_and_std()
 
             # When last iteration, skip MS and GC
@@ -286,7 +265,6 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
 
             RenameWorkspace(InputWorkspace="next_iteration", OutputWorkspace=self._name + "_" + str(iteration + 1))
 
-        self._save_results()
         return self
 
     def _fit_neutron_compton_profiles(self):
@@ -336,42 +314,6 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
 
         # Swap axis so that first axis selects spectra
         self._y_space_arrays = np.swapaxes(y_spaces, 0, 1)
-        return
-
-    def _save_plots(self):
-        if self._minimal_output or not self._save_figures_path.exists():
-            return
-
-        fig, ax = plt.subplots(subplot_kw={"projection": "mantid"})
-
-        ws_data_sum = mtd[self._workspace_being_fit.name() + "_sum"]
-        lab = "Sum of spectra"
-        ax.errorbar(ws_data_sum, fmt="k.", label="Sum of spectra", elinewidth=1.5)
-
-        label_list = [lab]
-        ws_fig_name = self._workspace_being_fit.name() + "_ncp_fits_sum"
-        CloneWorkspace(ws_data_sum, OutputWorkspace=ws_fig_name)
-
-        for key, ws in self._fit_profiles_workspaces.items():
-            ws_sum = mtd[ws.name() + "_sum"]
-            lab = f"Sum of {key} profile"
-            ax.plot(ws_sum, label=lab)
-            label_list.append(lab)
-            AppendSpectra(ws_fig_name, ws_sum, OutputWorkspace=ws_fig_name)
-
-        ax.set_xlabel("TOF")
-        ax.set_ylabel("Counts")
-        ax.set_title("Sum of NCP fits")
-        ax.legend()
-
-        fileName = self._workspace_being_fit.name() + "_profiles_sum.pdf"
-        savePath = self._save_figures_path / fileName
-        plt.savefig(savePath, bbox_inches="tight")
-        plt.close(fig)
-
-        # TODO: Sort this out into something cleaner
-        file_name = self._workspace_being_fit.name() + "_profiles_sum.txt"
-        SaveAscii(ws_fig_name, str(self._save_results_path / file_name), LogList=label_list)
         return
 
     def _calculate_summed_workspaces(self):
@@ -720,20 +662,3 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
             Operation="Multiply",
         )
         return mtd[ws_corrections_name + "_gamma_backgr"]
-
-    def _save_results(self):
-        all_workspaces = mtd.getObjectNames()
-        if self._minimal_output:
-            last_iteration = max([ws.replace("_total_ncp", "")[-1] for ws in all_workspaces if ws.endswith("_total_ncp")])
-            for ws_name in all_workspaces:
-                if ws_name.endswith((f"{last_iteration}_total_ncp", f"{last_iteration}_total_fse")):
-                    SaveAscii(ws_name, str(self._save_results_path / ws_name) + ".txt")
-                if ws_name.endswith((f"{last_iteration}_fit_results", f"{last_iteration}_means")):
-                    SaveAscii(ws_name, str(self._save_results_path / ws_name) + ".txt")
-            return
-
-        for ws_name in all_workspaces:
-            if ws_name.endswith(("ncp", "fse", "initial_parameters", "means", "fit_results")):
-                SaveAscii(ws_name, str(self._save_results_path / ws_name) + ".txt")
-            if ws_name.endswith(tuple([str(i) for i in range(10)])):
-                SaveNexus(ws_name, str(self._save_results_path / ws_name) + ".nxs")

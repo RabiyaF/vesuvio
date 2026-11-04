@@ -2,10 +2,11 @@ import re
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 from mantid.kernel import logger
 from mantid.simpleapi import AnalysisDataService, Load, SumSpectra
 
-from mvesuvio.globals import ScatteringType, Mode, Tags, ModeRunning
+from mvesuvio.globals import Mode, ModeRunning, ScatteringType, Tags
 from mvesuvio.util.files_manager import FilesManager
 
 
@@ -15,10 +16,18 @@ def _get_scattering_type(inputs_class: Any) -> ScatteringType:
     class_name = getattr(inputs_class, "__name__", "").lower()
     mode = str(getattr(inputs_class, "mode", "")).lower().replace(" ", "")
 
-    if name.startswith(Tags.BACKWARD.value.lower()) or ModeRunning.BACKWARD.value.lower() in class_name or mode == Mode.DOUBLE_DIFFERENCE.value.lower():
+    if (
+        name.startswith(Tags.BACKWARD.value.lower())
+        or ModeRunning.BACKWARD.value.lower() in class_name
+        or mode == Mode.DOUBLE_DIFFERENCE.value.lower()
+    ):
         return ScatteringType.BACKWARD
 
-    if name.startswith(Tags.FORWARD.value.lower()) or ModeRunning.FORWARD.value.lower() in class_name or mode == Mode.SINGLE_DIFFERENCE.value.lower():
+    if (
+        name.startswith(Tags.FORWARD.value.lower())
+        or ModeRunning.FORWARD.value.lower() in class_name
+        or mode == Mode.SINGLE_DIFFERENCE.value.lower()
+    ):
         return ScatteringType.FORWARD
 
     raise ValueError(f"Could not infer scattering type for input class: {inputs_class}")
@@ -26,6 +35,9 @@ def _get_scattering_type(inputs_class: Any) -> ScatteringType:
 
 def pass_data_into_ws(dataX, dataY, dataE, ws):
     "Modifies ws data to input data"
+    dataX = np.atleast_2d(dataX)
+    dataY = np.atleast_2d(dataY)
+    dataE = np.atleast_2d(dataE)
     for i in range(ws.getNumberHistograms()):
         ws.dataX(i)[:] = dataX[i, :]
         ws.dataY(i)[:] = dataY[i, :]

@@ -1,8 +1,9 @@
 import unittest
+import runpy
 import numpy as np
 from mock import MagicMock, Mock, patch, call
 from mvesuvio.analysis_reduction import VesuvioAnalysisRoutine
-from mvesuvio.globals import ScatteringType
+from mvesuvio.globals import ModeRunning, ScatteringType
 from mvesuvio.util.analysis_helpers import load_resolution
 from mvesuvio.util import handle_config
 from mantid.simpleapi import CreateWorkspace, CreateSampleWorkspace, CreateEmptyTableWorkspace
@@ -17,6 +18,26 @@ np.random.seed(4)
 
 class TestAnalysisReduction(unittest.TestCase):
 
+    def test_import_continues_when_plot_style_is_unavailable(self):
+        with patch("matplotlib.pyplot.style.use", side_effect=OSError("style unavailable")) as style_use:
+            runpy.run_module("mvesuvio.util.reduction_helpers", run_name="reduction_helpers_import_test")
+
+        style_use.assert_called_once()
+
+    def test_summary_category_and_pyexec(self):
+        alg = VesuvioAnalysisRoutine()
+        alg._setup = Mock()
+        alg.run = Mock()
+
+        self.assertEqual(alg.summary(), "Runs the analysis reduction routine for VESUVIO.")
+        self.assertEqual(alg.category(), "VesuvioAnalysis")
+
+        alg.PyExec()
+
+        alg._setup.assert_called_once_with()
+        alg.run.assert_called_once_with()
+
+
     def test_properites_vesuvio_analysis_algorithm(self):
 
         kwargs = {
@@ -29,13 +50,12 @@ class TestAnalysisReduction(unittest.TestCase):
             "InvalidDetectors": [3],
             "MultipleScatteringCorrection": False,
             "GammaCorrection": True,
-            "ModeRunning": "BACKWARD",
+            "ModeRunning": ModeRunning.BACKWARD,
             "TransmissionGuess": 0,
             "MultipleScatteringOrder": 2,
             "NumberOfEvents": 2,
             "Constraints": "()",
-            "ResultsPath": "some-path",
-            "OutputMeansTable":"output-table"
+            "OutputMeansTable": "output-table",
         }
         alg = VesuvioAnalysisRoutine()
         alg.PyInit()
@@ -78,7 +98,7 @@ class TestAnalysisReduction(unittest.TestCase):
                     return MagicMock(value=mock_table_profiles)
                 if key == "InputWorkspace":
                     return MagicMock(value=MagicMock(getSpectrumNumbers=MagicMock(return_value=3)))
-                if key == "InstrumentParametersFile" or key == "ResultsPath":
+                if key == "InstrumentParametersFile":
                     return MagicMock(value="")
                 if key == "Constraints":
                     return MagicMock(value=str(dill.dumps(({'type': 'eq', 'fun': lambda par:  par[0] - 2.7527*par[3] }, {'type': 'eq', 'fun': lambda par:  par[0] - 2.7527*par[3] }))))
@@ -90,7 +110,6 @@ class TestAnalysisReduction(unittest.TestCase):
             mock_get_prop.side_effect = mock_properties
 
             alg = VesuvioAnalysisRoutine()
-            alg._save_results_path = MagicMock()
             alg._setup()
 
             self.assertEqual(alg._initial_fit_parameters, [1.0, 5, 0.0, 1.1, 10, 0.1, 1.2, 12, 0.2])
@@ -785,6 +804,68 @@ class TestAnalysisReduction(unittest.TestCase):
                 call(LHSWorkspace='ws_to_correct', RHSWorkspace='ws_gamma', OutputWorkspace='ws_to_correct'),
             ])
 
+
+    def test_run_applies_corrections_between_iterations(self):
+        alg = VesuvioAnalysisRoutine()
+        alg._profiles_table = Mock(rowCount=Mock(return_value=1))
+        alg._name = "input"
+        alg._number_of_iterations = 1
+        alg._workspace_being_fit = Mock()
+        alg._workspace_being_fit.name.return_value = "input"
+        alg._workspace_for_corrections = Mock()
+        alg._workspace_for_corrections.name.return_value = "corrections"
+        alg._update_workspace_data = Mock()
+        alg._fit_neutron_compton_profiles = Mock()
+        alg._calculate_summed_workspaces = Mock()
+        alg._set_means_and_std = Mock()
+        alg._replace_zeros_with_ncp_for_corrections = Mock()
+        alg._correct_for_gamma_and_multiple_scattering = Mock()
+        alg._remask_columns_with_zeros = Mock()
+        workspaces = {"input_0": Mock(), "input_1": Mock()}
+
+        with (
+            patch("mvesuvio.analysis_reduction.mtd", workspaces),
+            patch("mvesuvio.analysis_reduction.CloneWorkspace") as clone_workspace,
+            patch("mvesuvio.analysis_reduction.RenameWorkspace") as rename_workspace,
+        ):
+            result = alg.run()
+
+        self.assertIs(result, alg)
+        self.assertEqual(alg._update_workspace_data.call_count, 2)
+        self.assertEqual(alg._fit_neutron_compton_profiles.call_count, 2)
+        alg._replace_zeros_with_ncp_for_corrections.assert_called_once_with()
+        alg._correct_for_gamma_and_multiple_scattering.assert_called_once_with("next_iteration")
+        alg._remask_columns_with_zeros.assert_called_once_with("next_iteration")
+        rename_workspace.assert_called_once_with(InputWorkspace="next_iteration", OutputWorkspace="input_1")
+        clone_workspace.assert_has_calls(
+            [
+                call(InputWorkspace="input", OutputWorkspace="input_0"),
+                call(InputWorkspace="corrections", OutputWorkspace="next_iteration"),
+            ]
+        )
+
+    def test_run_requires_at_least_one_profile(self):
+        alg = VesuvioAnalysisRoutine()
+        alg._profiles_table = Mock(rowCount=Mock(return_value=0))
+
+        with self.assertRaisesRegex(AssertionError, "Need at least one profile"):
+            alg.run()
+
+    def test_remask_columns_with_zeros(self):
+        alg = VesuvioAnalysisRoutine()
+        alg._zero_columns_boolean_mask = np.array([False, True, False, True])
+        data_y = np.ones((2, 4))
+        data_e = np.full((2, 4), 2.0)
+        workspace = Mock()
+        workspace.getNumberHistograms.return_value = 2
+        workspace.dataY.side_effect = lambda row: data_y[row]
+        workspace.dataE.side_effect = lambda row: data_e[row]
+
+        with patch("mvesuvio.analysis_reduction.mtd", {"next_iteration": workspace}):
+            alg._remask_columns_with_zeros("next_iteration")
+
+        np.testing.assert_array_equal(data_y, [[1, 0, 1, 0], [1, 0, 1, 0]])
+        np.testing.assert_array_equal(data_e, [[2, 0, 2, 0], [2, 0, 2, 0]])
 
 if __name__ == "__main__":
     unittest.main()
