@@ -12,7 +12,11 @@ concurrency:
 jobs:
   integration-tests:
     if: github.event.review.state == 'approved' && github.event.repository.fork == false
-    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.os }} 
 
     steps:
       - uses: actions/checkout@v7

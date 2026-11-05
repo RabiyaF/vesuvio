@@ -740,9 +740,10 @@ class TestReductionHelpers(unittest.TestCase):
         self.assertEqual(ForwardTestInputs.intensity_ratio_of_hydrogen_to_chosen_mass, 0)
         algorithm.setProperties.assert_called_once()
         properties = algorithm.setProperties.call_args.args[0]
+        ipfile_path = str(Path("/tmp/ip/ip_file.par"))
         self.assertEqual(properties["InputWorkspace"], "input")
         self.assertEqual(properties["InputProfiles"], "profiles")
-        self.assertEqual(properties["InstrumentParametersFile"], "/tmp/ip/ip_file.par")
+        self.assertEqual(properties["InstrumentParametersFile"], ipfile_path)
         self.assertEqual(properties["InvalidDetectors"], [3, 4])
         self.assertEqual(properties["ModeRunning"], ModeRunning.FORWARD)
 

@@ -1,4 +1,5 @@
 import os
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -80,9 +81,10 @@ class TestGeneralHelpers(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             missing_path = str(Path(temp_dir) / "missing.nxs")
             inputs = Mock(overwrite_analysis_input_workspace=missing_path)
+            expected_message = f"Override workspace not in ADS and not a path: {missing_path}"
             with (
                 patch.object(general_helpers, "AnalysisDataService", Mock(doesExist=Mock(return_value=False))),
-                self.assertRaisesRegex(ValueError, f"Override workspace not in ADS and not a path: {missing_path}"),
+                self.assertRaisesRegex(ValueError, re.escape(expected_message)),
             ):
                 general_helpers.load_overwritten_workspace_if_specified(inputs)
 
