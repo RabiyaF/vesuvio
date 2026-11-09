@@ -2,12 +2,15 @@ from mvesuvio.util.files_manager import FilesManager
 from mvesuvio.calibrate_analysis import EVSCalibrationAnalysis
 from mvesuvio.calibrate_fit import EVSCalibrationFit
 from mantid.api import AlgorithmManager, AlgorithmFactory, WorkspaceGroup
-from mantid.simpleapi import LoadVesuvio, LoadRaw, ConvertToDistribution, mtd
+from mantid.simpleapi import LoadVesuvio, LoadRaw, ConvertToDistribution, mtd, Load, SaveNexus
+from mantid.kernel import logger
 from mvesuvio.util.calibration_helpers import EVSGlobals
 from mvesuvio.globals import SharedParameterFitType, Mode
 import numpy as np
 from numpy.typing import NDArray
 from typing import Literal
+from pathlib import Path
+from functools import wraps
 
 
 class EVSCalibrationAnalysisInputs:
@@ -143,22 +146,66 @@ def _load_file(path, run_number, spec_list, mode, prefix):
     file = output + ".raw"
     file_path = str(path / file)
     try:
-        LoadVesuvio(
-            Filename=file_path,
-            Mode=mode,
-            OutputWorkspace=output,
-            SpectrumList=f"{spec_list[0]}-{spec_list[-1]}",
-            EnableLogging=False,
-        )
+        _load_vesuvio(file_path, run_number, spec_list, mode, output)
     except RuntimeError:
         LoadRaw(
-            file_path,
+            str(file_path),
             OutputWorkspace=output,
             SpectrumMin=spec_list[0],
             SpectrumMax=spec_list[-1],
             EnableLogging=False,
         )
         ConvertToDistribution(output, EnableLogging=False)
+
+
+def use_local_workspace(func):
+    @wraps(func)
+    def wrapper(file_path, run_number, spec_list, mode, output):
+        ws = _verify_local_load(run_number, mode, file_path)
+        if ws is not None:
+            return ws
+
+        ws = func(file_path, spec_list, mode, output)
+        SaveNexus(ws, Filename=file_path)
+        logger.notice(f"Workspace saved locally at: {file_path}")
+
+    return wrapper
+
+
+@use_local_workspace
+def _load_vesuvio(file_path, spec_list, mode, output):
+    LoadVesuvio(
+        Filename=file_path,
+        Mode=mode,
+        OutputWorkspace=output,
+        InstrumentParFile=EVSCalibrationAnalysisInputs.InstrumentParameterFile,
+        SpectrumList=f"{spec_list[0]}-{spec_list[-1]}",
+        EnableLogging=False,
+    )
+
+
+def _verify_local_load(run_number, mode, file_path):
+    if not (Path(file_path).is_file()):
+        logger.notice(f"Local workspace not found at {file_path}")
+        return None
+
+    ws = Load(Filename=file_path)
+    if ws.getHistory().size() == 0:
+        return None
+
+    metadata = ws.getHistory().getAlgorithmHistory(0)
+    saved_runs = metadata.getPropertyValue("Filename")
+    if saved_runs != run_number:
+        logger.notice(f"Filename in saved workspace did not match: {saved_runs} and {run_number}")
+        return None
+
+    saved_mode = metadata.getPropertyValue("Mode")
+    if saved_mode != mode:
+        logger.notice(f"Mode in saved workspace did not match: {saved_mode} and {mode}")
+        return None
+
+    logger.notice("\nLocally saved workspace metadata matched with calibration inputs.\n")
+    return ws
 
 
 if (__name__ == "__main__") or (__name__ == "mantidqt.widgets.codeeditor.execution"):
