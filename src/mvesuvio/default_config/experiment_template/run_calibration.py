@@ -2,7 +2,7 @@ from mvesuvio.util.files_manager import FilesManager
 from mvesuvio.calibrate_analysis import EVSCalibrationAnalysis
 from mvesuvio.calibrate_fit import EVSCalibrationFit
 from mantid.api import AlgorithmManager, AlgorithmFactory, WorkspaceGroup
-from mantid.simpleapi import LoadVesuvio, LoadRaw, ConvertToDistribution, mtd, Load, SaveNexus, DeleteWorkspaces
+from mantid.simpleapi import LoadVesuvio, LoadRaw, ConvertToDistribution, mtd, Load, SaveNexus
 from mantid.kernel import logger
 from mvesuvio.util.calibration_helpers import EVSGlobals
 from mvesuvio.globals import SharedParameterFitType, Mode
@@ -12,7 +12,6 @@ from typing import Literal
 from pathlib import Path
 from functools import wraps
 import ntpath
-from mantid import AnalysisDataService
 
 
 class EVSCalibrationAnalysisInputs:
@@ -158,8 +157,6 @@ def _load_file(path, run_number, spec_list, mode, prefix):
         _load_vesuvio(file_path, run_number, spec_list, mode, output)
     except RuntimeError:
         file_path = str(path / (output + ".raw"))
-        if AnalysisDataService.doesExist(output):
-            DeleteWorkspaces(output)
         LoadRaw(
             file_path,
             OutputWorkspace=output,
@@ -170,20 +167,20 @@ def _load_file(path, run_number, spec_list, mode, prefix):
         ConvertToDistribution(output, EnableLogging=False)
 
 
-def use_local_workspace(func):
+def use_local_run(func):
     @wraps(func)
     def wrapper(file_path, run_number, spec_list, mode, output):
-        if _local_file_match(run_number, mode, file_path, output):
+        if _local_run_exists(run_number, mode, file_path, output):
             return
 
-        ws = func(file_path, spec_list, mode, output)
-        SaveNexus(ws, Filename=file_path)
+        func(file_path, spec_list, mode, output)
+        SaveNexus(mtd[output], Filename=file_path)
         logger.notice(f"Workspace saved locally at: {file_path}")
 
     return wrapper
 
 
-@use_local_workspace
+@use_local_run
 def _load_vesuvio(file_path, spec_list, mode, output):
     LoadVesuvio(
         Filename=file_path,
@@ -195,7 +192,7 @@ def _load_vesuvio(file_path, spec_list, mode, output):
     )
 
 
-def _local_file_match(run_number, mode, file_path, output):
+def _local_run_exists(run_number, mode, file_path, output):
     if not (Path(file_path).is_file()):
         logger.notice(f"Local workspace not found at {file_path}")
         return False
@@ -205,8 +202,8 @@ def _local_file_match(run_number, mode, file_path, output):
         return False
 
     metadata = ws.getHistory().getAlgorithmHistory(0)
-    saved_runs = metadata.getPropertyValue("Filename")
-    if saved_runs != str(run_number):
+    saved_runs = int(Path(metadata.getPropertyValue("Filename")).stem.removeprefix("EVS"))
+    if saved_runs != run_number:
         logger.notice(f"Filename in saved workspace did not match: {saved_runs} and {run_number}")
         return False
 
@@ -216,10 +213,9 @@ def _local_file_match(run_number, mode, file_path, output):
         return False
 
     saved_ipfile_name = ntpath.basename(metadata.getPropertyValue("InstrumentParFile"))
-    if saved_ipfile_name != EVSCalibrationAnalysisInputs.InstrumentParameterFile:
-        logger.notice(
-            f"IP files in saved workspace did not match: {saved_ipfile_name} and {EVSCalibrationAnalysisInputs.InstrumentParameterFile}"
-        )
+    requested_ipfile_name = Path(EVSCalibrationAnalysisInputs.InstrumentParameterFile).name
+    if saved_ipfile_name != requested_ipfile_name:
+        logger.notice(f"IP files in saved workspace did not match: {saved_ipfile_name} and {requested_ipfile_name}")
         return False
 
     logger.notice("\nLocally saved workspace metadata matched with calibration inputs.\n")
