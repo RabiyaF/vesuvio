@@ -1,6 +1,8 @@
 from mvesuvio.util.files_manager import FilesManager
 from mvesuvio.calibrate_analysis import EVSCalibrationAnalysis
 from mvesuvio.calibrate_fit import EVSCalibrationFit
+import mvesuvio
+from mvesuvio import ConfigArgInputs
 from mantid.api import AlgorithmManager, AlgorithmFactory, WorkspaceGroup
 from mantid.simpleapi import LoadVesuvio, LoadRaw, ConvertToDistribution, mtd, Load, SaveNexus
 from mantid.kernel import logger
@@ -221,4 +223,5 @@ def _local_workspace_available(run_number, mode, file_path, output):
 
 
 if (__name__ == "__main__") or (__name__ == "mantidqt.widgets.codeeditor.execution"):
+    mvesuvio.main(ConfigArgInputs(experiment_dir=str(Path(__file__).parent), ip_dir=""))
     main()
