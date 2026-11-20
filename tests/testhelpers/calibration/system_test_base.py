@@ -1,5 +1,6 @@
 import unittest
 from os import path
+from typing import ClassVar
 
 import numpy as np
 from mantid.api import WorkspaceGroup
@@ -10,17 +11,17 @@ from mvesuvio.util.calibration_helpers import EVSGlobals
 
 
 class TestConstants:
-    D_SPACINGS_COPPER = [2.0865, 1.807, 1.278, 1.0897]
-    D_SPACINGS_LEAD = [1.489, 1.750, 2.475, 2.858]
-    D_SPACINGS_NIOBIUM = [2.3356, 1.6515, 1.3484, 1.1678]
+    D_SPACINGS_COPPER: ClassVar[list[float]] = [2.0865, 1.807, 1.278, 1.0897]
+    D_SPACINGS_LEAD: ClassVar[list[float]] = [1.489, 1.750, 2.475, 2.858]
+    D_SPACINGS_NIOBIUM: ClassVar[list[float]] = [2.3356, 1.6515, 1.3484, 1.1678]
 
-    MASS_COPPER = 63.546
-    MASS_LEAD = 207.19
-    MASS_NIOBIUM = 92.906
+    MASS_COPPER: ClassVar[float] = 63.546
+    MASS_LEAD: ClassVar[float] = 207.19
+    MASS_NIOBIUM: ClassVar[float] = 92.906
 
-    DEFAULT_RELATIVE_TOLERANCE = 0.1
-    IGNORE_DETECTOR = 100  # Detectors to be ignored by the system test, as specified by the user
-    INVALID_DETECTOR = 101  # Detectors identified as invalid by the script
+    DEFAULT_RELATIVE_TOLERANCE: ClassVar[float] = 0.1
+    IGNORE_DETECTOR: ClassVar[int] = 100  # Detectors to be ignored by the system test, as specified by the user
+    INVALID_DETECTOR: ClassVar[int] = 101  # Detectors identified as invalid by the script
 
 
 class EVSCalibrationTest(unittest.TestCase):
