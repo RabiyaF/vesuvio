@@ -481,10 +481,7 @@ class EVSCalibrationFit(PythonAlgorithm):
         check_peak_positions = self._check_peak_positions(table_name, estimated_peaks)
         check_peak_heights = self._check_peak_heights(table_name, peak_height_abs_threshold, peak_height_rel_threshold)
 
-        if check_nans and check_peak_positions and check_peak_heights:
-            return True
-        else:
-            return False
+        return bool(check_nans and check_peak_positions and check_peak_heights)
 
     def _check_nans(self, table_name):
         table_ws = mtd[table_name]
@@ -517,10 +514,7 @@ class EVSCalibrationFit(PythonAlgorithm):
     def _evaluate_peak_height_against_bg(self, height, position, linear_bg_A0, linear_bg_A1, rel_threshold, abs_threshold):
         bg = position * linear_bg_A1 + linear_bg_A0
         required_height = bg * rel_threshold + abs_threshold
-        if height < required_height:
-            return False
-        else:
-            return True
+        return not height < required_height
 
     def _check_peak_heights(self, table_name, abs_threshold_over_bg, rel_threshold_over_bg):
         height_str = self._func_param_names["Height"]

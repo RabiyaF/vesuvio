@@ -111,7 +111,4 @@ def _copy_config_entry(relative_path, entry_type, overwrite):
 
 
 def is_cache_set():
-    if read_cached_var("caching.inputs", False):
-        return True
-    else:
-        return False
+    return bool(read_cached_var("caching.inputs", False))
