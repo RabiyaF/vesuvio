@@ -1220,7 +1220,7 @@ def weightedAvgArr(dataYO, dataEO):
     meanE = np.sqrt(1 / np.nansum(1 / np.square(dataE), axis=0))
 
     # Change invalid data back to original masking format with zeros
-    nanInfMask = (meanE == np.inf) | (meanE == np.nan) | (meanY == np.nan)
+    nanInfMask = np.isinf(meanE) | np.isnan(meanE) | np.isnan(meanY)
     meanY[nanInfMask] = 0
     meanE[nanInfMask] = 0
 
@@ -1311,7 +1311,7 @@ def weightedAvgXBinsArr(dataX, dataY, dataE, xp):
                 mY, mE = weightedAvgArr(allY, allE)  # Outputs masked values as zeros
 
         # DataY and DataE should never reach NaN, but safeguard in case they do
-        if (mE == np.nan) | (mY == np.nan):
+        if np.isnan(mE) or np.isnan(mY):
             mY, mE = 0, 0
 
         meansY[i] = mY
@@ -1349,7 +1349,7 @@ def avgArr(dataYO):
     dataY = dataYO.copy()
     dataY[dataY == 0] = np.nan
     meanY = np.nanmean(dataY, axis=0)
-    meanY[meanY == np.nan] = 0
+    meanY[np.isnan(meanY)] = 0
 
     assert np.all(np.all(dataYO == 0, axis=0) == (meanY == 0)), "Columns of zeros should give zero."
     return meanY
@@ -1387,7 +1387,7 @@ def calcCostFun(model, i, x, y, yerr, res, sharedPars):
     convolvedModel._parameters = {key: None for key in costSig}
 
     # Select only valid data, i.e. when error is not 0 or nan or inf
-    nonZeros = (yerr != 0) & (yerr != np.nan) & (yerr != np.inf) & (y != np.nan)
+    nonZeros = (yerr != 0) & np.isfinite(yerr) & ~np.isnan(y)
     xNZ = x[nonZeros]
     yNZ = y[nonZeros]
     yerrNZ = yerr[nonZeros]
@@ -1443,7 +1443,7 @@ def plot_global_fit(ws_group, yFitIC):
     offset = 0
     vertical_spacing = 0.02
     for ws_name in individual_names:
-        if ws_name.endswith("Parameters") or ws_name.endswith("chi2"):
+        if ws_name.endswith(("Parameters", "chi2")):
             continue
 
         fit_ws = mtd[ws_name]
@@ -1533,7 +1533,7 @@ def save_result_of_global_fit(data_x, data_y, data_e, m, total_cost_fun, ws_name
 def save_workspaces(yFitIC):
     for ws_name in mtd.getObjectNames():
         save_path = yFitIC.outputs_dir / f"{yFitIC.fitting_model}_fit" / ws_name
-        if ws_name.endswith("Parameters") or ws_name.endswith("CovarianceMatrix"):
+        if ws_name.endswith(("Parameters", "CovarianceMatrix")):
             save_path.parent.mkdir(exist_ok=True, parents=True)
             SaveAscii(ws_name, str(save_path))
         if ws_name.endswith("Workspace"):

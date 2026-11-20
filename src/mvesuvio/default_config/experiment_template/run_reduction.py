@@ -81,7 +81,7 @@ class BackwardAnalysisInputs:
     runs: ClassVar[str] = "43066-43076"  # Runs of your sample dataset
     empty_runs: ClassVar[str] = "41876-41923"  # Empty CCR
     mode = Mode.DOUBLE_DIFFERENCE
-    instrument_parameters_fil: ClassVar[str] = "ip2019.par"
+    instrument_parameters_file: ClassVar[str] = "ip2019.par"
     detectors: ClassVar[str] = "3-134"
     mask_detectors: ClassVar[list[int] | str] = [
         18,
