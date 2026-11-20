@@ -11,7 +11,7 @@ from mvesuvio.main import main
 
 __project_url__ = "https://github.com/mantidproject/vesuvio"
 
-__all__ = ["__version__", "__project_url__", "config", "set_config", "run", "version"]
+__all__ = ["__project_url__", "__version__", "config", "run", "set_config", "version"]
 
 
 class ArgInputs:

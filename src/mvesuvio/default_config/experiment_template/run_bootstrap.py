@@ -1,5 +1,5 @@
-from pathlib import Path
 import runpy
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 from mantid.api import AnalysisDataService
@@ -56,7 +56,7 @@ def run_bootstrap():
     input_dirs = bootstrap_helpers.get_bootstrap_input_directories(bootstrap_inputs_directory)
     if not input_dirs:
         return
-    inputs_parent_path, inputs_backward_path, inputs_forward_path = input_dirs
+    _inputs_parent_path, inputs_backward_path, inputs_forward_path = input_dirs
 
     bootstrap_outputs_directory = FilesManager.get_bootstrap_outputs_dir()
 

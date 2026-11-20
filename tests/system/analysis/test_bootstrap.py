@@ -45,7 +45,11 @@ class TestBootstrap(unittest.TestCase):
 
             expected_dirs = {"fitting_inputs", "fitting_outputs", "reduction_outputs"}
             actual_dirs = {path.name for path in sample_output_dir.iterdir() if path.is_dir()}
-            self.assertSetEqual(expected_dirs, actual_dirs, f"Bootstrap output for sample {sample_index} should contain exactly the expected folders: {sorted(expected_dirs)}")
+            self.assertSetEqual(
+                expected_dirs,
+                actual_dirs,
+                f"Bootstrap output for sample {sample_index} should contain exactly the expected folders: {sorted(expected_dirs)}",
+            )
 
             for subdir_name in sorted(expected_dirs):
                 subdir = sample_output_dir / subdir_name

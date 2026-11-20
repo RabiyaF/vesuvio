@@ -1,10 +1,12 @@
 import runpy
 import unittest
 from pathlib import Path
+from shutil import copytree, rmtree
+
+from mantid.simpleapi import AnalysisDataService, CompareWorkspaces, Load, LoadAscii, mtd
+
 from mvesuvio.util import handle_config
 from mvesuvio.util.files_manager import FilesManager
-from shutil import copytree, rmtree
-from mantid.simpleapi import mtd, LoadAscii, AnalysisDataService, CompareWorkspaces, Load
 
 
 class TestReduction(unittest.TestCase):
@@ -16,11 +18,7 @@ class TestReduction(unittest.TestCase):
         cls.benchmark_path = Path(__file__).absolute().parent.parent.parent / "data" / "analysis" / "benchmark" / "reduction"
         cls.results_path = handle_config.USER_CONFIG_PATH / "experiment_template" / "reduction_outputs"
         reduction_inputs = Path(__file__).absolute().parent.parent.parent / "data" / "analysis" / "inputs" / "reduction"
-        copytree(
-            reduction_inputs,
-            handle_config.USER_CONFIG_PATH / "experiment_template" / "reduction_inputs",
-            dirs_exist_ok=True
-            )
+        copytree(reduction_inputs, handle_config.USER_CONFIG_PATH / "experiment_template" / "reduction_inputs", dirs_exist_ok=True)
 
     def setUp(self):
         rmtree(self.results_path, ignore_errors=True)
@@ -53,13 +51,13 @@ class TestReduction(unittest.TestCase):
                 if p.is_dir():
                     continue
                 if p.name.endswith("nxs"):
-                    Load(str(p), OutputWorkspace=prefix+"_"+p.stem)
+                    Load(str(p), OutputWorkspace=prefix + "_" + p.stem)
                     continue
-                LoadAscii(str(p), Separator="CSV", OutputWorkspace=prefix+"_"+p.stem)
+                LoadAscii(str(p), Separator="CSV", OutputWorkspace=prefix + "_" + p.stem)
 
         for ws_name in mtd.getObjectNames():
-            if ws_name.startswith('bench'):
-                if ws_name.endswith('fit_results'):
+            if ws_name.startswith("bench"):
+                if ws_name.endswith("fit_results"):
                     # Fit results spectra by spectra very too much for comparison
                     # TODO: Find out why and fix it
                     continue

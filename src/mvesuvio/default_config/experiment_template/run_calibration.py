@@ -1,19 +1,21 @@
-from mvesuvio.util.files_manager import FilesManager
-from mvesuvio.calibrate_analysis import EVSCalibrationAnalysis
-from mvesuvio.calibrate_fit import EVSCalibrationFit
+import ntpath
+from functools import wraps
+from pathlib import Path
+from typing import Literal
+
+import numpy as np
+from mantid.api import AlgorithmFactory, AlgorithmManager, WorkspaceGroup
+from mantid.kernel import logger
+from mantid.simpleapi import ConvertToDistribution, Load, LoadRaw, LoadVesuvio, SaveNexus, mtd
+from numpy.typing import NDArray
+
 import mvesuvio
 from mvesuvio import ConfigArgInputs
-from mantid.api import AlgorithmManager, AlgorithmFactory, WorkspaceGroup
-from mantid.simpleapi import LoadVesuvio, LoadRaw, ConvertToDistribution, mtd, Load, SaveNexus
-from mantid.kernel import logger
+from mvesuvio.calibrate_analysis import EVSCalibrationAnalysis
+from mvesuvio.calibrate_fit import EVSCalibrationFit
+from mvesuvio.globals import Mode, SharedParameterFitType
 from mvesuvio.util.calibration_helpers import EVSGlobals
-from mvesuvio.globals import SharedParameterFitType, Mode
-import numpy as np
-from numpy.typing import NDArray
-from typing import Literal
-from pathlib import Path
-from functools import wraps
-import ntpath
+from mvesuvio.util.files_manager import FilesManager
 
 
 class EVSCalibrationAnalysisInputs:

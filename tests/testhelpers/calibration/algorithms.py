@@ -20,7 +20,7 @@ def create_algorithm(name, **kwargs):
     @returns The algorithm handle
     """
     # Initialize the whole framework
-    import mantid.simpleapi  # noqa
+    import mantid.simpleapi
 
     if "Version" in kwargs:
         alg = mantid.api.AlgorithmManager.createUnmanaged(name, kwargs["Version"])

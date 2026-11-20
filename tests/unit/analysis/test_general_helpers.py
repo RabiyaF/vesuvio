@@ -14,7 +14,6 @@ from mvesuvio.util import general_helpers
 
 
 class TestGeneralHelpers(unittest.TestCase):
-
     def test_get_scattering_type_returns_backward_enum(self):
         class BackwardInputs:
             mode = Mode.DOUBLE_DIFFERENCE.value
@@ -114,7 +113,10 @@ class TestGeneralHelpers(unittest.TestCase):
         DeleteWorkspace(ws)
 
     def test_make_summarised_log_file(self):
-        with tempfile.NamedTemporaryFile(delete=False) as mock_mantid_log_file, tempfile.NamedTemporaryFile(delete=False) as mock_summary_file:
+        with (
+            tempfile.NamedTemporaryFile(delete=False) as mock_mantid_log_file,
+            tempfile.NamedTemporaryFile(delete=False) as mock_summary_file,
+        ):
             mock_mantid_log_file.write(
                 dedent(
                     """

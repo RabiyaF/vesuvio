@@ -134,9 +134,7 @@ class TestBootstrapHelpers(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             output_path = Path(temp_dir) / "output"
             with patch.object(FilesManager, "set_experiment_dir") as set_experiment_dir:
-                bootstrap_helpers.update_sample_inputs_outputs(
-                    back_inputs, front_inputs, back_path, front_path, output_path
-                )
+                bootstrap_helpers.update_sample_inputs_outputs(back_inputs, front_inputs, back_path, front_path, output_path)
 
             self.assertTrue(output_path.is_dir())
         self.assertEqual(back_inputs.name, back_path.stem)

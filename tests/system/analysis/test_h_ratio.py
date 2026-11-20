@@ -1,12 +1,14 @@
 import runpy
 import unittest
-from unittest.mock import patch
 from pathlib import Path
-from mvesuvio.util import handle_config
 from shutil import copytree, rmtree
-from mantid.simpleapi import LoadAscii, CompareWorkspaces, AnalysisDataService
+from unittest.mock import patch
+
+from mantid.simpleapi import AnalysisDataService, CompareWorkspaces, LoadAscii
+
 import mvesuvio
 from mvesuvio import ConfigArgInputs
+from mvesuvio.util import handle_config
 from mvesuvio.util.files_manager import FilesManager
 
 
@@ -17,14 +19,17 @@ class TestHRatioRoutine(unittest.TestCase):
         handle_config.refresh_config_dir_and_contents()
         handle_config.set_default_config_vars()
         mvesuvio.main(ConfigArgInputs(experiment_dir="", ip_dir=""))
-        cls.benchmark_path = Path(__file__).absolute().parent.parent.parent / "data" / "analysis" / "benchmark" / "h_ratio" / "hydrogen_intensity_ratios_estimates"
+        cls.benchmark_path = (
+            Path(__file__).absolute().parent.parent.parent
+            / "data"
+            / "analysis"
+            / "benchmark"
+            / "h_ratio"
+            / "hydrogen_intensity_ratios_estimates"
+        )
         cls.result_path = handle_config.USER_CONFIG_PATH / "experiment_template" / "hydrogen_intensity_ratios_estimates"
         reduction_inputs = Path(__file__).absolute().parent.parent.parent / "data" / "analysis" / "inputs" / "reduction"
-        copytree(
-            reduction_inputs,
-            handle_config.USER_CONFIG_PATH / "experiment_template" / "reduction_inputs",
-            dirs_exist_ok=True
-            )
+        copytree(reduction_inputs, handle_config.USER_CONFIG_PATH / "experiment_template" / "reduction_inputs", dirs_exist_ok=True)
 
     def setUp(self):
         if self.result_path.is_dir():

@@ -1,35 +1,36 @@
-from mantid.kernel import (
-    Direction,
-    StringListValidator,
-    IntArrayBoundedValidator,
-    IntArrayProperty,
-    FloatArrayBoundedValidator,
-    StringMandatoryValidator,
-    IntBoundedValidator,
-    FloatArrayProperty,
-)
-from mantid.api import FileProperty, FileAction, PythonAlgorithm, AlgorithmManager, WorkspaceGroupProperty
-from mantid.simpleapi import (
-    CreateEmptyTableWorkspace,
-    DeleteWorkspace,
-    ReplaceSpecialValues,
-    GroupWorkspaces,
-    mtd,
-    ConvertTableToMatrixWorkspace,
-    ConjoinWorkspaces,
-    Transpose,
-    PlotPeakByLogValue,
-    RenameWorkspace,
-)
-from mvesuvio.util.calibration_helpers import EVSGlobals, EVSMiscFunctions, InvalidDetectors
-from mvesuvio.globals import PeakType, Mode, SharedParameterFitType, FitFunction
-
 import os
 import sys
-from scipy.constants import m_n as neutron_mass
-from scipy.constants import h as planck_constant
-from scipy.stats import sem as standard_error_mean
+
 import numpy as np
+from mantid.api import AlgorithmManager, FileAction, FileProperty, PythonAlgorithm, WorkspaceGroupProperty
+from mantid.kernel import (
+    Direction,
+    FloatArrayBoundedValidator,
+    FloatArrayProperty,
+    IntArrayBoundedValidator,
+    IntArrayProperty,
+    IntBoundedValidator,
+    StringListValidator,
+    StringMandatoryValidator,
+)
+from mantid.simpleapi import (
+    ConjoinWorkspaces,
+    ConvertTableToMatrixWorkspace,
+    CreateEmptyTableWorkspace,
+    DeleteWorkspace,
+    GroupWorkspaces,
+    PlotPeakByLogValue,
+    RenameWorkspace,
+    ReplaceSpecialValues,
+    Transpose,
+    mtd,
+)
+from scipy.constants import h as planck_constant
+from scipy.constants import m_n as neutron_mass
+from scipy.stats import sem as standard_error_mean
+
+from mvesuvio.globals import FitFunction, Mode, PeakType, SharedParameterFitType
+from mvesuvio.util.calibration_helpers import EVSGlobals, EVSMiscFunctions, InvalidDetectors
 
 
 class EVSCalibrationAnalysis(PythonAlgorithm):

@@ -2,6 +2,7 @@ import numpy as np
 import numpy.typing as npt
 import scipy.constants
 from mantid.simpleapi import CreateEmptyTableWorkspace, mtd
+
 from mvesuvio.globals import FitFunction
 
 

@@ -1,12 +1,12 @@
-import mvesuvio
-from mantid.simpleapi import Rebin, Scale, Minus, SetSample, SaveAscii, mtd
-from pathlib import Path
 import math
-from typing import Dict
+from pathlib import Path
+
+from mantid.simpleapi import Minus, Rebin, SaveAscii, Scale, SetSample, mtd
+
+import mvesuvio
 from mvesuvio import ConfigArgInputs
 from mvesuvio.globals import Masking, Mode
-from mvesuvio.util import general_helpers
-from mvesuvio.util import reduction_helpers
+from mvesuvio.util import general_helpers, reduction_helpers
 from mvesuvio.util.files_manager import FilesManager
 
 
@@ -33,7 +33,7 @@ class SharedGeometry:
     def cylinder_volume_cm3(self) -> float:
         return math.pi * self.cylinder_radius_cm**2 * self.cylinder_height_cm
 
-    def slab_dict(self) -> Dict[str, object]:
+    def slab_dict(self) -> dict[str, object]:
         """SetSample FlatPlate dictionary, dimensions in cm."""
         return {
             "Shape": "FlatPlate",
@@ -44,7 +44,7 @@ class SharedGeometry:
             "Angle": 0.0,
         }
 
-    def cylinder_dict(self) -> Dict[str, object]:
+    def cylinder_dict(self) -> dict[str, object]:
         """SetSample Cylinder dictionary, dimensions in cm."""
         return {
             "Shape": "Cylinder",
@@ -105,7 +105,7 @@ class BackwardAnalysisInputs:
         [0, None], [11, 14], [-3, 1],
     ]
     # fmt: on
-    constraints = {"type": "eq", "fun": lambda par: (RECOIL_WEIGHT["C"] * par[0] - RECOIL_WEIGHT["O"] * par[3])}
+    constraints = {"type": "eq", "fun": lambda par: RECOIL_WEIGHT["C"] * par[0] - RECOIL_WEIGHT["O"] * par[3]}
 
     number_of_iterations_for_corrections = 0  # 4
     # Y-space reduction is performed at the end of reduction and its outputs are used by run_fitting.py
@@ -166,7 +166,7 @@ class ForwardAnalysisInputs:
         [0, None], [13.897, 13.897], [-3, 1],
     ]
     # fmt: on
-    constraints = {"type": "eq", "fun": lambda par: (RECOIL_WEIGHT["C"] * par[3] - RECOIL_WEIGHT["O"] * par[6])}
+    constraints = {"type": "eq", "fun": lambda par: RECOIL_WEIGHT["C"] * par[3] - RECOIL_WEIGHT["O"] * par[6]}
 
     number_of_iterations_for_corrections = 1  # 4
     # Y-space reduction is performed at the end of reduction and its outputs are used by run_fitting.py

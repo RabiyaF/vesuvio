@@ -1,4 +1,3 @@
-
 import os
 import runpy
 import unittest
@@ -10,12 +9,15 @@ from mvesuvio.util.files_manager import FilesManager
 os.environ.setdefault("MPLBACKEND", "Agg")
 
 import matplotlib
+
 matplotlib.use("Agg", force=True)
 
-from mvesuvio.util import handle_config
-from mvesuvio.globals import FitModels
 from shutil import copytree, rmtree
-from mantid.simpleapi import mtd, LoadAscii, AnalysisDataService, CompareWorkspaces, Load
+
+from mantid.simpleapi import AnalysisDataService, CompareWorkspaces, Load, LoadAscii, mtd
+
+from mvesuvio.globals import FitModels
+from mvesuvio.util import handle_config
 
 TESTS_ROOT = Path(__file__).resolve().parents[2]
 FITTING_INPUTS_PATH = TESTS_ROOT / "data" / "analysis" / "inputs" / "fitting"
@@ -30,11 +32,7 @@ class TestFitting(unittest.TestCase):
         cls.benchmark_path = Path(__file__).absolute().parent.parent.parent / "data" / "analysis" / "benchmark" / "fitting" / "gauss_fit"
         cls.results_path = handle_config.USER_CONFIG_PATH / "experiment_template" / "fitting_outputs" / "gauss_fit"
         rmtree(cls.results_path, ignore_errors=True)
-        copytree(
-            FITTING_INPUTS_PATH,
-            handle_config.USER_CONFIG_PATH / "experiment_template" / "fitting_inputs",
-            dirs_exist_ok=True
-            )
+        copytree(FITTING_INPUTS_PATH, handle_config.USER_CONFIG_PATH / "experiment_template" / "fitting_inputs", dirs_exist_ok=True)
 
     def setUp(self):
         rmtree(self.results_path, ignore_errors=True)
@@ -65,12 +63,12 @@ class TestFitting(unittest.TestCase):
                 if p.is_dir():
                     continue
                 if p.name.endswith("nxs"):
-                    Load(str(p), OutputWorkspace=prefix+"_"+p.stem)
+                    Load(str(p), OutputWorkspace=prefix + "_" + p.stem)
                     continue
-                LoadAscii(str(p), Separator="CSV", OutputWorkspace=prefix+"_"+p.stem)
+                LoadAscii(str(p), Separator="CSV", OutputWorkspace=prefix + "_" + p.stem)
 
         for ws_name in mtd.getObjectNames():
-            if ws_name.startswith('bench'):
+            if ws_name.startswith("bench"):
                 tol = 1e-3
                 result, _ = CompareWorkspaces(ws_name, ws_name.replace("bench", "result"), Tolerance=tol)
                 self.assertTrue(result, f"Comparison failed for workspace: {ws_name}")

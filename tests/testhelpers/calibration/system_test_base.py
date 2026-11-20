@@ -1,10 +1,12 @@
 import unittest
+from os import path
+
 import numpy as np
 from mantid.api import WorkspaceGroup
-from mantid.simpleapi import LoadVesuvio, LoadRaw, mtd, ConvertToDistribution
+from mantid.simpleapi import ConvertToDistribution, LoadRaw, LoadVesuvio, mtd
+
+from mvesuvio.globals import FitFunction, Mode
 from mvesuvio.util.calibration_helpers import EVSGlobals
-from os import path
-from mvesuvio.globals import Mode, FitFunction
 
 
 class TestConstants:
@@ -137,7 +139,7 @@ class EVSCalibrationTest(unittest.TestCase):
             Filename=filename,
             Mode=self._selected_mode,
             OutputWorkspace=output_name,
-            SpectrumList="%d-%d" % (self._selected_spec_range[0], self._selected_spec_range[1]),
+            SpectrumList=f"{self._selected_spec_range[0]:d}-{self._selected_spec_range[1]:d}",
             EnableLogging=False,
         )
 

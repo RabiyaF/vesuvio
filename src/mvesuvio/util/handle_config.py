@@ -1,5 +1,5 @@
-from shutil import copyfile, copytree, ignore_patterns
 from pathlib import Path
+from shutil import copyfile, copytree, ignore_patterns
 
 PACKAGE_CONFIG_PATH = Path(__file__).absolute().parent.with_name("default_config")
 USER_CONFIG_PATH = Path.home() / "mvesuvio"
@@ -28,7 +28,7 @@ def _read_config(config_file_path, throw_on_not_found=True):
     try:
         with open(config_file_path, "r") as file:
             lines = file.readlines()
-    except IOError:
+    except OSError:
         if throw_on_not_found:
             raise RuntimeError(f"Could not read from vesuvio config file: {config_file_path}")
     return lines
