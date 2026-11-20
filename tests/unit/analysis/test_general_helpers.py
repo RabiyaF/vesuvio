@@ -146,9 +146,11 @@ class TestGeneralHelpers(unittest.TestCase):
             mock_mantid_log_file_path = mock_mantid_log_file.name
             mock_summary_file_path = mock_summary_file.name
 
-        with patch("mvesuvio.util.general_helpers.FilesManager.get_mantid_log_file", return_value=mock_mantid_log_file_path):
-            with patch("mvesuvio.util.general_helpers.FilesManager.get_summarised_log_file", return_value=mock_summary_file_path):
-                general_helpers.make_summarised_log_file()
+        with (
+            patch("mvesuvio.util.general_helpers.FilesManager.get_mantid_log_file", return_value=mock_mantid_log_file_path),
+            patch("mvesuvio.util.general_helpers.FilesManager.get_summarised_log_file", return_value=mock_summary_file_path),
+        ):
+            general_helpers.make_summarised_log_file()
 
         with open(mock_summary_file_path, "r", encoding="utf-8") as summary_file:
             current_log_file_content = summary_file.read()

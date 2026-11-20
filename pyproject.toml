@@ -91,9 +91,6 @@ file = "src/mvesuvio/_version.py"
 include = ["src/**/*.py", "tests/**/*.py"]
 line-length = 140
 
-[tool.ruff.lint]
-ignore = ["F405", "F403"]
-
 [tool.ruff.format]
 skip-magic-trailing-comma = false
 line-ending = "auto"

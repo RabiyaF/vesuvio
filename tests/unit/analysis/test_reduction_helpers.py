@@ -140,19 +140,27 @@ class TestReductionHelpers(unittest.TestCase):
 
             GroupWorkspaces(["front_0_1.0079_ncp", "front_0_12_ncp"], OutputWorkspace="front_0_ncp_group")
 
-            with patch.object(reduction_helpers, "SaveNexus") as mock_save_nexus:
-                with patch.object(reduction_helpers.fitting_helpers, "calculate_resolution", return_value=MagicMock()):
-                    with patch.object(
-                        reduction_helpers.fitting_helpers, "isolate_lighest_mass_data", return_value=(MagicMock(), MagicMock())
-                    ):
-                        ForwardAnalysisInputs.name = "front"
-                        ForwardAnalysisInputs.name_of_subtracted_workspace = "front"
-                        ForwardAnalysisInputs.overwrite_analysis_input_workspace = ""
-                        ForwardAnalysisInputs.run_this_scattering_type = True
-                        ForwardAnalysisInputs.number_of_iterations_for_corrections = 0
-                        ForwardAnalysisInputs.subtract_calculated_fse_from_data = False
+            with (
+                patch.object(reduction_helpers, "SaveNexus") as mock_save_nexus,
+                patch.object(
+                    reduction_helpers.fitting_helpers,
+                    "calculate_resolution",
+                    return_value=MagicMock(),
+                ),
+                patch.object(
+                    reduction_helpers.fitting_helpers,
+                    "isolate_lighest_mass_data",
+                    return_value=(MagicMock(), MagicMock()),
+                ),
+            ):
+                ForwardAnalysisInputs.name = "front"
+                ForwardAnalysisInputs.name_of_subtracted_workspace = "front"
+                ForwardAnalysisInputs.overwrite_analysis_input_workspace = ""
+                ForwardAnalysisInputs.run_this_scattering_type = True
+                ForwardAnalysisInputs.number_of_iterations_for_corrections = 0
+                ForwardAnalysisInputs.subtract_calculated_fse_from_data = False
 
-                        reduction_helpers.save_fitting_input_workspaces(ForwardAnalysisInputs)
+                reduction_helpers.save_fitting_input_workspaces(ForwardAnalysisInputs)
 
             self.assertEqual(mock_save_nexus.call_count, 3)
             self.assertTrue(FilesManager.get_fitting_inputs_dir().exists())
@@ -175,20 +183,26 @@ class TestReductionHelpers(unittest.TestCase):
             RenameWorkspace(ncp, "override_front_0_12_ncp")
             GroupWorkspaces(["override_front_0_12_ncp"], OutputWorkspace="override_front_0_ncp_group")
 
-            with patch.object(reduction_helpers, "SaveNexus") as mock_save_nexus:
-                with patch.object(reduction_helpers.fitting_helpers, "calculate_resolution", return_value=MagicMock()):
-                    with patch.object(
-                        reduction_helpers.fitting_helpers,
-                        "isolate_lighest_mass_data",
-                        return_value=(MagicMock(), MagicMock()),
-                    ):
-                        ForwardAnalysisInputs.run_this_scattering_type = True
-                        ForwardAnalysisInputs.number_of_iterations_for_corrections = 0
-                        ForwardAnalysisInputs.subtract_calculated_fse_from_data = False
-                        ForwardAnalysisInputs.overwrite_analysis_input_workspace = "override_front"
-                        ForwardAnalysisInputs.name_of_subtracted_workspace = "front_subtracted"
+            with (
+                patch.object(reduction_helpers, "SaveNexus") as mock_save_nexus,
+                patch.object(
+                    reduction_helpers.fitting_helpers,
+                    "calculate_resolution",
+                    return_value=MagicMock(),
+                ),
+                patch.object(
+                    reduction_helpers.fitting_helpers,
+                    "isolate_lighest_mass_data",
+                    return_value=(MagicMock(), MagicMock()),
+                ),
+            ):
+                ForwardAnalysisInputs.run_this_scattering_type = True
+                ForwardAnalysisInputs.number_of_iterations_for_corrections = 0
+                ForwardAnalysisInputs.subtract_calculated_fse_from_data = False
+                ForwardAnalysisInputs.overwrite_analysis_input_workspace = "override_front"
+                ForwardAnalysisInputs.name_of_subtracted_workspace = "front_subtracted"
 
-                        reduction_helpers.save_fitting_input_workspaces(ForwardAnalysisInputs)
+                reduction_helpers.save_fitting_input_workspaces(ForwardAnalysisInputs)
 
             self.assertEqual(mock_save_nexus.call_count, 3)
             saved_paths = [call_args.args[1] for call_args in mock_save_nexus.call_args_list]
@@ -209,20 +223,26 @@ class TestReductionHelpers(unittest.TestCase):
             RenameWorkspace(ncp, "front_subtracted_0_12_ncp")
             GroupWorkspaces(["front_subtracted_0_12_ncp"], OutputWorkspace="front_subtracted_0_ncp_group")
 
-            with patch.object(reduction_helpers, "SaveNexus") as mock_save_nexus:
-                with patch.object(reduction_helpers.fitting_helpers, "calculate_resolution", return_value=MagicMock()):
-                    with patch.object(
-                        reduction_helpers.fitting_helpers,
-                        "isolate_lighest_mass_data",
-                        return_value=(MagicMock(), MagicMock()),
-                    ):
-                        ForwardAnalysisInputs.run_this_scattering_type = True
-                        ForwardAnalysisInputs.number_of_iterations_for_corrections = 0
-                        ForwardAnalysisInputs.subtract_calculated_fse_from_data = False
-                        ForwardAnalysisInputs.overwrite_analysis_input_workspace = "override_front"
-                        ForwardAnalysisInputs.name_of_subtracted_workspace = "front_subtracted"
+            with (
+                patch.object(reduction_helpers, "SaveNexus") as mock_save_nexus,
+                patch.object(
+                    reduction_helpers.fitting_helpers,
+                    "calculate_resolution",
+                    return_value=MagicMock(),
+                ),
+                patch.object(
+                    reduction_helpers.fitting_helpers,
+                    "isolate_lighest_mass_data",
+                    return_value=(MagicMock(), MagicMock()),
+                ),
+            ):
+                ForwardAnalysisInputs.run_this_scattering_type = True
+                ForwardAnalysisInputs.number_of_iterations_for_corrections = 0
+                ForwardAnalysisInputs.subtract_calculated_fse_from_data = False
+                ForwardAnalysisInputs.overwrite_analysis_input_workspace = "override_front"
+                ForwardAnalysisInputs.name_of_subtracted_workspace = "front_subtracted"
 
-                        reduction_helpers.save_fitting_input_workspaces(ForwardAnalysisInputs)
+                reduction_helpers.save_fitting_input_workspaces(ForwardAnalysisInputs)
 
             self.assertEqual(mock_save_nexus.call_count, 3)
             saved_paths = [call_args.args[1] for call_args in mock_save_nexus.call_args_list]

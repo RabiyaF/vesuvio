@@ -80,10 +80,12 @@ class TestFittingInputsRoundTrip(unittest.TestCase):
             )
             return joy, joy_avg
 
-        with patch("mvesuvio.util.fitting_helpers.calculate_resolution", side_effect=self._mock_calculate_resolution):
-            with patch("mvesuvio.util.fitting_helpers.VesuvioResolution") as resolution_mock:
-                with patch.object(reduction_helpers, "y_space_reduction", side_effect=fake_y_space_reduction):
-                    reduction_helpers.save_fitting_input_workspaces(ForwardAnalysisInputs)
+        with (
+            patch("mvesuvio.util.fitting_helpers.calculate_resolution", side_effect=self._mock_calculate_resolution),
+            patch("mvesuvio.util.fitting_helpers.VesuvioResolution") as resolution_mock,
+            patch.object(reduction_helpers, "y_space_reduction", side_effect=fake_y_space_reduction),
+        ):
+            reduction_helpers.save_fitting_input_workspaces(ForwardAnalysisInputs)
 
         resolution_mock.assert_called_once()
         self.assertEqual(resolution_mock.call_args.kwargs["Workspace"].name(), ws_name)

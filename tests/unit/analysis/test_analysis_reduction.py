@@ -1460,9 +1460,11 @@ class TestAnalysisReduction(unittest.TestCase):
         alg._transmission_guess = 0.85
 
         # Stop right after the mode-dependent block, nothing later is under test
-        with patch("mvesuvio.analysis_reduction.VesuvioThickness", side_effect=StopIteration) as mock_thickness:
-            with self.assertRaises(StopIteration):
-                alg.create_multiple_scattering_workspaces()
+        with (
+            patch("mvesuvio.analysis_reduction.VesuvioThickness", side_effect=StopIteration) as mock_thickness,
+            self.assertRaises(StopIteration),
+        ):
+            alg.create_multiple_scattering_workspaces()
 
         np.testing.assert_allclose(mock_thickness.call_args.kwargs["Masses"], [12.0, 16.0, 1.0079])
 
