@@ -43,11 +43,10 @@ if TYPE_CHECKING:
     from mvesuvio.default_config.experiment_template.run_reduction import BackwardAnalysisInputs, ForwardAnalysisInputs
 
 import ntpath
+import contextlib
 
-try:
+with contextlib.suppress(OSError):
     plt.style.use(["ggplot", handle_config.get_plots_config_file()])
-except OSError:
-    pass
 
 
 def run_estimate_h_ratio(back_alg, front_alg, back_masses, back_chosen_mass_index, rtol, max_iter):

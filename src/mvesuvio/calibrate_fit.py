@@ -414,11 +414,10 @@ class EVSCalibrationFit(PythonAlgorithm):
     def _select_best_fit_params(self, spec_num, fit_results, fit_results_u=None):
         selected_params = fit_results["params"]
         unconstrained_fit_selected = False
-        if fit_results_u:
-            if fit_results_u["chi2"] < fit_results["chi2"] and fit_results_u["status"] != "peaks invalid":
-                selected_params = fit_results_u["params"]
-                unconstrained_fit_selected = True
-                self._prog_reporter.report(f"Fit to spectrum {spec_num:d} without constraining parameters successful")
+        if fit_results_u and fit_results_u["chi2"] < fit_results["chi2"] and fit_results_u["status"] != "peaks invalid":
+            selected_params = fit_results_u["params"]
+            unconstrained_fit_selected = True
+            self._prog_reporter.report(f"Fit to spectrum {spec_num:d} without constraining parameters successful")
         return selected_params, unconstrained_fit_selected
 
     def _output_params_to_table(self, spec_num, num_estimated_peaks, params, output_table_name):
@@ -553,7 +552,7 @@ class EVSCalibrationFit(PythonAlgorithm):
             for position_index, (position, height) in enumerate(
                 zip(mtd[unfiltered_fits_ws_name].column(2), mtd[unfiltered_fits_ws_name].column(1))
             ):
-                if not position == 0 and self._evaluate_peak_height_against_bg(
+                if position != 0 and self._evaluate_peak_height_against_bg(
                     height, position, linear_bg_A0, linear_bg_A1, peak_height_abs_threshold, peak_height_rel_threshold
                 ):
                     peak_estimate_deltas.append((peak_estimate_index, position_index, abs(position - peak_estimate)))
@@ -875,15 +874,10 @@ class EVSCalibrationFit(PythonAlgorithm):
                 find_peak_params["FWHM"] = 5
 
         elif not self._fitting_bragg_peaks:
+            half_peak_window = 60 # just be recoil 
             if self._fitting_resonance_peaks:
                 # 25 seems to be able to fit the final peak in the first backscattering spectrum
-                if spec_number >= EVSGlobals.FRONTSCATTERING_RANGE[0]:
-                    half_peak_window = 20
-                else:
-                    half_peak_window = 25
-            else:
-                # #ust be recoil
-                half_peak_window = 60
+                half_peak_window = 20 if spec_number >= EVSGlobals.FRONTSCATTERING_RANGE[0] else 25
 
             fit_windows = [[peak - half_peak_window, peak + half_peak_window] for peak in peak_centre]
             # flatten the list: http://stackoverflow.com/questions/952914/making-a-flat-list-out-of-list-of-lists-in-python

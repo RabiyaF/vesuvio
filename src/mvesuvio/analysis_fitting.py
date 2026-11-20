@@ -26,11 +26,10 @@ from scipy import optimize, signal
 from mvesuvio.globals import FitModels, Masking
 from mvesuvio.util import handle_config
 from mvesuvio.util.general_helpers import extractWS, print_table_workspace
+import contextlib
 
-try:
+with contextlib.suppress(OSError):
     plt.style.use(["ggplot", handle_config.get_plots_config_file()])
-except OSError:
-    pass
 repoPath = Path(__file__).absolute().parent  # Path to the repository
 
 PLOTS_PROJECTION = "mantid"
@@ -766,10 +765,8 @@ def oddPointsRes(x, res):
     assert np.min(x) == -np.max(x), "Resolution needs to be in symetric range!"
     assert x.size == res.size, "x and res need to be the same size!"
 
-    if res.size % 2 == 0:
-        dens = res.size + 1  # If even change to odd
-    else:
-        dens = res.size  # If odd, keep being odd
+    # Ensure an odd number of points.
+    dens = res.size + 1 if res.size % 2 == 0 else res.size
 
     xDense = np.linspace(np.min(x), np.max(x), dens)  # Make gridd with odd number of points - peak at center
     xDelta = xDense[1] - xDense[0]

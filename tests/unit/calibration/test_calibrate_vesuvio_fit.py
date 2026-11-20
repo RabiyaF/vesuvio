@@ -317,14 +317,12 @@ class TestVesuvioCalibrationFit(unittest.TestCase):
     @patch("mvesuvio.util.calibration_helpers.EVSMiscFunctions.read_table_column")
     def test_estimate_bragg_peak_positions(self, mock_read_table_column):
         def side_effect(column_name, **kwargs):
-            if column_name == "L0":
-                return 11.05
-            elif column_name == "L1":
-                return 0.5505
-            elif column_name == "t0":
-                return -0.2
-            elif column_name == "theta":
-                return 139.5371
+            return {
+                "L0": 11.05,
+                "L1": 0.5505,
+                "t0": -0.2,
+                "theta": 139.5371,
+            }.get(column_name)
 
         alg = EVSCalibrationFit()
         alg._spec_list = [22]

@@ -120,7 +120,7 @@ class TestEVSCalibrationFit(EVSCalibrationTest):
         positions in time of flight calculated from the parameter file
         within a small tolerance.
         """
-        rel_tolerance = {} if not rel_tolerance else rel_tolerance
+        rel_tolerance = rel_tolerance if rel_tolerance else {}
 
         if isinstance(params_table, WorkspaceGroup):
             params_table = params_table.getNames()[0]

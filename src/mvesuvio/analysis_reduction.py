@@ -586,13 +586,12 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
         mean_intensity_ratios = self._mean_intensity_ratios
 
         # If Backscattering mode and H is present in the sample, add H to MS properties
-        if self._mode_running == ScatteringType.BACKWARD:
-            if self._h_ratio > 0:  # If H is present, ratio is a number
-                HIntensity = self._h_ratio * mean_intensity_ratios[self._chosen_index_for_h_ratio]
-                mean_intensity_ratios = np.append(mean_intensity_ratios, HIntensity)
-                mean_intensity_ratios /= np.sum(mean_intensity_ratios)
-                masses = np.append(masses, 1.0079)
-                mean_widths = np.append(mean_widths, 5.0)
+        if self._mode_running == ScatteringType.BACKWARD and self._h_ratio > 0:  # If H is present, ratio is a number
+            HIntensity = self._h_ratio * mean_intensity_ratios[self._chosen_index_for_h_ratio]
+            mean_intensity_ratios = np.append(mean_intensity_ratios, HIntensity)
+            mean_intensity_ratios /= np.sum(mean_intensity_ratios)
+            masses = np.append(masses, 1.0079)
+            mean_widths = np.append(mean_widths, 5.0)
 
         dens, trans = VesuvioThickness(
             Masses=masses,

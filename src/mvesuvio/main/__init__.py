@@ -10,7 +10,7 @@ from mvesuvio.util.files_manager import FilesManager
 
 
 def main(manual_args=None):
-    args = _setup_and_parse_args() if not manual_args else manual_args
+    args = manual_args if manual_args else _setup_and_parse_args()
     if args.command == "version":
         _print_version()
 
