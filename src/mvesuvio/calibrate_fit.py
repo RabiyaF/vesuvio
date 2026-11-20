@@ -874,7 +874,7 @@ class EVSCalibrationFit(PythonAlgorithm):
                 find_peak_params["FWHM"] = 5
 
         elif not self._fitting_bragg_peaks:
-            half_peak_window = 60 # just be recoil 
+            half_peak_window = 60  # just be recoil
             if self._fitting_resonance_peaks:
                 # 25 seems to be able to fit the final peak in the first backscattering spectrum
                 half_peak_window = 20 if spec_number >= EVSGlobals.FRONTSCATTERING_RANGE[0] else 25

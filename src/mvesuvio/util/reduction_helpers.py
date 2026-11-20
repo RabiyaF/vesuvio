@@ -42,8 +42,8 @@ from mvesuvio.util.general_helpers import extractWS, pass_data_into_ws, print_ta
 if TYPE_CHECKING:
     from mvesuvio.default_config.experiment_template.run_reduction import BackwardAnalysisInputs, ForwardAnalysisInputs
 
-import ntpath
 import contextlib
+import ntpath
 
 with contextlib.suppress(OSError):
     plt.style.use(["ggplot", handle_config.get_plots_config_file()])

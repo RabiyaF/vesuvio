@@ -1,3 +1,4 @@
+import contextlib
 import time
 from pathlib import Path
 
@@ -26,7 +27,6 @@ from scipy import optimize, signal
 from mvesuvio.globals import FitModels, Masking
 from mvesuvio.util import handle_config
 from mvesuvio.util.general_helpers import extractWS, print_table_workspace
-import contextlib
 
 with contextlib.suppress(OSError):
     plt.style.use(["ggplot", handle_config.get_plots_config_file()])
