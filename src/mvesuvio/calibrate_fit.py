@@ -102,7 +102,7 @@ class EVSCalibrationFit(PythonAlgorithm):
 
         self.declareProperty(
             FloatArrayProperty("Energy", [EVSGlobals.ENERGY_ESTIMATE], FloatArrayMandatoryValidator(), Direction.Input),
-            doc="List of estimated expected energies for peaks. Optional: the default is {:f}".format(EVSGlobals.ENERGY_ESTIMATE),
+            doc=f"List of estimated expected energies for peaks. Optional: the default is {EVSGlobals.ENERGY_ESTIMATE:f}",
         )
 
         self.declareProperty(

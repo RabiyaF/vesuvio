@@ -413,7 +413,7 @@ def convert_to_list_of_spectrum_numbers(detectors):
         detector_ranges = [r.split("-") for r in detectors.replace(" ", "").split(",")]
         return [i for r in detector_ranges for i in range(int(r[0]), int(r[-1]) + 1)]
 
-    if isinstance(detectors, list) or isinstance(detectors, np.ndarray):
+    if isinstance(detectors, (list, np.ndarray)):
         return [int(d) for d in detectors]
 
     raise ValueError("Type not recognized: Masked detectors should be string, list or array.")
