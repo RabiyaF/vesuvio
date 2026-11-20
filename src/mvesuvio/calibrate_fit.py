@@ -88,7 +88,7 @@ class EVSCalibrationFit(PythonAlgorithm):
         spectrum_validator.setUpper(EVSGlobals.DETECTOR_RANGE[1])
         self.declareProperty(
             IntArrayProperty("SpectrumRange", EVSGlobals.DETECTOR_RANGE, spectrum_validator, Direction.Input),
-            doc="Spectrum range to use. Default is the total range (%d,%d)" % tuple(EVSGlobals.DETECTOR_RANGE),
+            doc=f"Spectrum range to use. Default is the total range ({EVSGlobals.DETECTOR_RANGE[0]:d},{EVSGlobals.DETECTOR_RANGE[1]:d})",
         )
 
         self.declareProperty("Mass", 207.19, doc="Mass of the sample in amu to be used when calculating energy. Default is Pb: 207.19")
@@ -102,7 +102,7 @@ class EVSCalibrationFit(PythonAlgorithm):
 
         self.declareProperty(
             FloatArrayProperty("Energy", [EVSGlobals.ENERGY_ESTIMATE], FloatArrayMandatoryValidator(), Direction.Input),
-            doc="List of estimated expected energies for peaks. Optional: the default is %f" % EVSGlobals.ENERGY_ESTIMATE,
+            doc="List of estimated expected energies for peaks. Optional: the default is {:f}".format(EVSGlobals.ENERGY_ESTIMATE),
         )
 
         self.declareProperty(
@@ -280,17 +280,17 @@ class EVSCalibrationFit(PythonAlgorithm):
         output_workspaces = []
         for index, estimated_peak_positions in enumerate(estimated_peak_positions_all_spec.transpose()):
             spec_number = self._spec_list[0] + index
-            self._prog_reporter.report("Fitting to spectrum %d" % spec_number)
+            self._prog_reporter.report(f"Fitting to spectrum {spec_number:d}")
 
-            find_peaks_output_name = self._sample + "_peaks_table_%d" % spec_number
-            fit_peaks_output_name = self._output_workspace_name + "_Spec_%d" % spec_number
+            find_peaks_output_name = f"{self._sample}_peaks_table_{spec_number:d}"
+            fit_peaks_output_name = f"{self._output_workspace_name}_Spec_{spec_number:d}"
             fit_results = self._fit_peaks_to_spectra(
                 index, spec_number, estimated_peak_positions, find_peaks_output_name, fit_peaks_output_name
             )
 
             fit_results_unconstrained = None
             if fit_results["status"] != "success":
-                self._prog_reporter.report("Fitting to spectrum %d without constraining parameters" % spec_number)
+                self._prog_reporter.report(f"Fitting to spectrum {spec_number:d} without constraining parameters")
                 fit_results_unconstrained = self._fit_peaks_to_spectra(
                     index,
                     spec_number,
@@ -357,7 +357,7 @@ class EVSCalibrationFit(PythonAlgorithm):
         if unconstrained:
             find_peaks_output_name = self._get_unconstrained_ws_name(find_peaks_output_name)
             fit_peaks_output_name = self._get_unconstrained_ws_name(fit_peaks_output_name)
-            logger.notice("Fitting to spectrum %d without constraining parameters" % spec_number)
+            logger.notice(f"Fitting to spectrum {spec_number:d} without constraining parameters")
 
         find_peaks_input_params = self._get_find_peak_parameters(spec_number, peak_estimates_list, unconstrained)
         logger.notice(str(spec_number) + "   " + str(find_peaks_input_params))
@@ -1014,7 +1014,7 @@ class EVSCalibrationFit(PythonAlgorithm):
         """
 
         bkg_intercept, bkg_gradient = peak["A0"], peak["A1"]
-        fit_func = "name=LinearBackground, A0={:f}, A1={:f}".format(bkg_intercept, bkg_gradient)
+        fit_func = f"name=LinearBackground, A0={bkg_intercept:f}, A1={bkg_gradient:f}"
         fit_func += ";"
 
         return fit_func

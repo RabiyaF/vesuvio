@@ -239,7 +239,7 @@ class EVSCalibrationAnalysis(PythonAlgorithm):
             self._param_table = self._current_workspace
 
             if i < self._iterations - 1:
-                self._current_workspace = self._output_workspace_name + "_Iteration_%d" % (i + 1)
+                self._current_workspace = f"{self._output_workspace_name}_Iteration_{i + 1:d}"
                 self._create_calib_parameter_table(self._current_workspace)
 
                 # copy over L0 and t0 parameters to new table
@@ -528,7 +528,7 @@ class EVSCalibrationAnalysis(PythonAlgorithm):
         # extract fit data to workspace
         peak_workspaces = []
         for i, param_ws in enumerate(mtd[table_workspace_group].getNames()):
-            temp_peak_data = "__temp_peak_ws_%d" % i
+            temp_peak_data = f"__temp_peak_ws_{i:d}"
             ConvertTableToMatrixWorkspace(
                 InputWorkspace=param_ws, OutputWorkspace=temp_peak_data, ColumnX="Spectrum", ColumnY="f1.PeakCentre"
             )
