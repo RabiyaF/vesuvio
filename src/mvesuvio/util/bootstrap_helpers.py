@@ -14,13 +14,13 @@ def get_bootstrap_input_directories(inputs_dir_path: Path):
     inputs_backward_path = inputs_dir_path / "backward"
     if not inputs_backward_path.exists():
         inputs_backward_path.mkdir(exist_ok=True)
-        logger.error(f"Created backward directory. Please place your backward samples here: {str(inputs_backward_path)}")
+        logger.error(f"Created backward directory. Please place your backward samples here: {inputs_backward_path!s}")
         return ()
 
     inputs_forward_path = inputs_dir_path / "forward"
     if not inputs_forward_path.exists():
         inputs_forward_path.mkdir(exist_ok=True)
-        logger.error(f"Created forward directory. Please place your forward samples here: {str(inputs_forward_path)}")
+        logger.error(f"Created forward directory. Please place your forward samples here: {inputs_forward_path!s}")
         return ()
 
     return (inputs_dir_path, inputs_backward_path, inputs_forward_path)
@@ -72,10 +72,10 @@ def apply_bootstrap_overrides(back_inputs, front_inputs, back_ws_path: Path | No
     front_override = str(front_ws_path.absolute()) if front_ws_path is not None else ""
 
     # Keep legacy attribute for compatibility while using the new canonical override field.
-    setattr(back_inputs, "override_input_workspace", back_override)
-    setattr(front_inputs, "override_input_workspace", front_override)
-    setattr(back_inputs, "overwrite_analysis_input_workspace", back_override)
-    setattr(front_inputs, "overwrite_analysis_input_workspace", front_override)
+    back_inputs.override_input_workspace = back_override
+    front_inputs.override_input_workspace = front_override
+    back_inputs.overwrite_analysis_input_workspace = back_override
+    front_inputs.overwrite_analysis_input_workspace = front_override
 
     if back_override:
         back_inputs.name = Path(back_override).stem
@@ -95,4 +95,3 @@ def update_sample_inputs_outputs(
     output_path.mkdir(exist_ok=True)
     apply_bootstrap_overrides(back_inputs, front_inputs, back_ws_path, front_ws_path)
     FilesManager.set_experiment_dir(output_path)
-    return

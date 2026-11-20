@@ -1,11 +1,13 @@
+from typing import TYPE_CHECKING
+
+from mantid.api import AnalysisDataService
+from mantid.kernel import logger
+from mantid.simpleapi import Load, SaveAscii, mtd
+
 from mvesuvio.analysis_fitting import FitInYSpace
 from mvesuvio.globals import FitModels
 from mvesuvio.util import general_helpers
 from mvesuvio.util.files_manager import FilesManager
-from mantid.api import AnalysisDataService
-from mantid.kernel import logger
-from mantid.simpleapi import Load, SaveAscii, mtd
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .run_reduction import BackwardAnalysisInputs, ForwardAnalysisInputs

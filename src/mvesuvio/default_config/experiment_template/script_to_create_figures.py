@@ -1,9 +1,10 @@
-import os
 import glob
-from mantid.simpleapi import LoadAscii
-import matplotlib.pyplot as plt
-import matplotlib as mpl
+import os
 from pathlib import Path
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from mantid.simpleapi import LoadAscii
 
 # ------------------- user settings -------------------
 BASE_DIR = r"/your/path/to/output/files/directory"  # <-- change this

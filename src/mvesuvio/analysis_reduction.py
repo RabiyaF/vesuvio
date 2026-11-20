@@ -1,47 +1,47 @@
 import numpy as np
 import scipy
+from mantid.api import FileAction, FileProperty, MatrixWorkspaceProperty, PythonAlgorithm, WorkspaceGroupProperty
+from mantid.dataobjects import TableWorkspaceProperty
 from mantid.kernel import (
-    StringListValidator,
     Direction,
+    FloatBoundedValidator,
     IntArrayBoundedValidator,
     IntArrayProperty,
     IntBoundedValidator,
-    FloatBoundedValidator,
+    StringListValidator,
 )
-from mantid.api import FileProperty, FileAction, PythonAlgorithm, MatrixWorkspaceProperty, WorkspaceGroupProperty
-from mantid.dataobjects import TableWorkspaceProperty
 from mantid.simpleapi import (
-    mtd,
-    CreateEmptyTableWorkspace,
-    SumSpectra,
     CloneWorkspace,
+    CreateEmptyTableWorkspace,
+    CreateWorkspace,
     DeleteWorkspace,
+    DeleteWorkspaces,
+    Divide,
+    GroupWorkspaces,
+    Integration,
+    Minus,
+    Multiply,
+    RenameWorkspace,
+    Scale,
+    SumSpectra,
     VesuvioCalculateGammaBackground,
     VesuvioCalculateMS,
-    Scale,
-    RenameWorkspace,
-    Minus,
     VesuvioThickness,
-    Integration,
-    Divide,
-    Multiply,
-    DeleteWorkspaces,
-    CreateWorkspace,
-    GroupWorkspaces,
+    mtd,
 )
 
+from mvesuvio.globals import ModeRunning, ScatteringType
 from mvesuvio.util.analysis_helpers import (
-    numerical_third_derivative,
-    load_resolution,
-    load_instrument_params,
     extend_range_of_array,
+    load_instrument_params,
+    load_resolution,
     make_gamma_correction_input_string,
     make_multiple_scattering_input_string,
+    numerical_third_derivative,
     pseudo_voigt,
 )
-from mvesuvio.util.general_helpers import print_table_workspace
-from mvesuvio.globals import ModeRunning, ScatteringType
 from mvesuvio.util.constraints_transport import deserialize_constraints
+from mvesuvio.util.general_helpers import print_table_workspace
 
 np.set_printoptions(suppress=True, precision=4, linewidth=200)
 
@@ -281,13 +281,12 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
 
         assert np.any(self._fit_parameters), "Fitting parameters cannot be zero for all spectra!"
         print_table_workspace(self._table_fit_results)
-        return
 
     def _set_kinematic_arrays(self, dataX):
         # Extend range due to third derivative cutting edges
         dataX = extend_range_of_array(dataX, 6)
 
-        det, plick, angle, T0, L0, L1 = np.hsplit(self._instrument_params, 6)  # each is of len(dataX)
+        _det, _plick, angle, T0, L0, L1 = np.hsplit(self._instrument_params, 6)  # each is of len(dataX)
 
         # T0 is electronic delay due to instruments
         t_us = dataX - T0
@@ -302,7 +301,6 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
             * (self._E0 + ENERGY_FINAL - 2.0 * np.sqrt(self._E0 * ENERGY_FINAL) * np.cos(angle / 180.0 * np.pi))
         )
         self._deltaQ = np.sqrt(delta_Q2)
-        return
 
     def _set_y_space_arrays(self):
         delta_Q = self._deltaQ[np.newaxis, :, :]
@@ -314,7 +312,6 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
 
         # Swap axis so that first axis selects spectra
         self._y_space_arrays = np.swapaxes(y_spaces, 0, 1)
-        return
 
     def _calculate_summed_workspaces(self):
         SumSpectra(InputWorkspace=self._workspace_being_fit.name(), OutputWorkspace=self._workspace_being_fit.name() + "_sum")
@@ -335,7 +332,6 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
             self._set_means_and_std_arrays(widths, intensities)
 
         self._create_means_table()
-        return
 
     def _set_means_and_std_arrays(self, widths, intensities):
         # Remove failed fits and masked spectra
@@ -359,7 +355,6 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
         self._std_widths = np.nanstd(widths, axis=1)
         self._mean_intensity_ratios = np.nanmean(intensities, axis=1)
         self._std_intensity_ratios = np.nanstd(intensities, axis=1)
-        return
 
     def _create_means_table(self):
         table = CreateEmptyTableWorkspace(OutputWorkspace=self._workspace_being_fit.name() + "_means")
@@ -427,7 +422,7 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
     def _error_function(self, pars):
         """Error function to be minimized, in TOF space"""
 
-        ncp_for_each_mass, fse_for_each_mass = self._neutron_compton_profiles(pars)
+        ncp_for_each_mass, _fse_for_each_mass = self._neutron_compton_profiles(pars)
 
         ncp_total = np.sum(ncp_for_each_mass, axis=0)
         data_y = self._dataY[self._row_being_fit]
@@ -484,8 +479,8 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
         v0 = self._v0
         E0 = self._E0
         delta_Q = self._deltaQ
-        det, plick, angle, T0, L0, L1 = np.hsplit(self._instrument_params, 6)
-        dE1, dTOF, dTheta, dL0, dL1, dE1_lorz = np.hsplit(self._resolution_params, 6)
+        _det, _plick, angle, _T0, L0, L1 = np.hsplit(self._instrument_params, 6)
+        dE1, dTOF, dTheta, dL0, dL1, _dE1_lorz = np.hsplit(self._resolution_params, 6)
 
         angle = angle * np.pi / 180
 
@@ -514,7 +509,6 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
         # in A-1    #same as dy^2 = (dy/dw)^2*dw^2 + (dy/dq)^2*dq^2
         gaussianResWidth = np.sqrt(dW2 + dQ2)
         self._gaussian_resolution = np.swapaxes(gaussianResWidth, 0, 1)
-        return
 
     def _get_lorentzian_resolution(self, centers):
         proximity_to_y_centers = np.abs(self._y_space_arrays[self._row_being_fit] - centers)
@@ -526,8 +520,8 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
         masses = self._masses.reshape(-1, 1, 1)
         E0 = self._E0
         delta_Q = self._deltaQ
-        det, plick, angle, T0, L0, L1 = np.hsplit(self._instrument_params, 6)
-        dE1, dTOF, dTheta, dL0, dL1, dE1_lorz = np.hsplit(self._resolution_params, 6)
+        _det, _plick, angle, _T0, L0, L1 = np.hsplit(self._instrument_params, 6)
+        _dE1, _dTOF, _dTheta, _dL0, _dL1, dE1_lorz = np.hsplit(self._resolution_params, 6)
 
         angle = angle * np.pi / 180
 
@@ -542,7 +536,6 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
 
         lorentzianResWidth = np.sqrt(dWdE1_lor + dQdE1_lor) * dE1_lorz  # in A-1
         self._lorentzian_resolution = np.swapaxes(lorentzianResWidth, 0, 1)
-        return
 
     def _replace_zeros_with_ncp_for_corrections(self):
         """
@@ -562,7 +555,6 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
             self._workspace_for_corrections.dataY(row)[self._zero_columns_boolean_mask] = ncp[row, self._zero_columns_boolean_mask]
 
         SumSpectra(InputWorkspace=self._workspace_for_corrections.name(), OutputWorkspace=self._workspace_for_corrections.name() + "_sum")
-        return
 
     def _remask_columns_with_zeros(self, ws_to_remask_name):
         """
@@ -574,7 +566,6 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
         for row in range(ws_to_remask.getNumberHistograms()):
             ws_to_remask.dataY(row)[self._zero_columns_boolean_mask] = 0
             ws_to_remask.dataE(row)[self._zero_columns_boolean_mask] = 0
-        return
 
     def _correct_for_gamma_and_multiple_scattering(self, ws_name):
         if self._gamma_correction:
@@ -584,7 +575,6 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
         if self._multiple_scattering_correction:
             multiple_scattering_ws = self.create_multiple_scattering_workspaces()
             Minus(LHSWorkspace=ws_name, RHSWorkspace=multiple_scattering_ws.name(), OutputWorkspace=ws_name)
-        return
 
     def create_multiple_scattering_workspaces(self):
         """Creates _MulScattering and _TotScattering workspaces used for the MS correction"""
@@ -596,13 +586,12 @@ class VesuvioAnalysisRoutine(PythonAlgorithm):
         mean_intensity_ratios = self._mean_intensity_ratios
 
         # If Backscattering mode and H is present in the sample, add H to MS properties
-        if self._mode_running == ScatteringType.BACKWARD:
-            if self._h_ratio > 0:  # If H is present, ratio is a number
-                HIntensity = self._h_ratio * mean_intensity_ratios[self._chosen_index_for_h_ratio]
-                mean_intensity_ratios = np.append(mean_intensity_ratios, HIntensity)
-                mean_intensity_ratios /= np.sum(mean_intensity_ratios)
-                masses = np.append(masses, 1.0079)
-                mean_widths = np.append(mean_widths, 5.0)
+        if self._mode_running == ScatteringType.BACKWARD and self._h_ratio > 0:  # If H is present, ratio is a number
+            HIntensity = self._h_ratio * mean_intensity_ratios[self._chosen_index_for_h_ratio]
+            mean_intensity_ratios = np.append(mean_intensity_ratios, HIntensity)
+            mean_intensity_ratios /= np.sum(mean_intensity_ratios)
+            masses = np.append(masses, 1.0079)
+            mean_widths = np.append(mean_widths, 5.0)
 
         dens, trans = VesuvioThickness(
             Masses=masses,

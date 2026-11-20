@@ -1,22 +1,22 @@
-import unittest
-import numpy as np
-from mock import MagicMock
-from mvesuvio.analysis_fitting import plot_global_fit
-from mantid.simpleapi import CreateWorkspace, AnalysisDataService
-import matplotlib.pyplot as plt
-from pathlib import Path
 import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import MagicMock
 
+import matplotlib.pyplot as plt
+import numpy as np
+from mantid.simpleapi import AnalysisDataService, CreateWorkspace
+
+from mvesuvio.analysis_fitting import plot_global_fit
 
 np.set_printoptions(suppress=True, precision=6, linewidth=200)
 
 
 class TestAnalysisFitting(unittest.TestCase):
-
     def test_plot_global_fit(self):
 
         def gaussian(x, amplitude, mean, std):
-            return amplitude * np.exp(-((x - mean)**2) / (2 * std**2))
+            return amplitude * np.exp(-((x - mean) ** 2) / (2 * std**2))
 
         np.random.seed(4)
         x_data = np.linspace(0, 10, 100)
@@ -35,7 +35,7 @@ class TestAnalysisFitting(unittest.TestCase):
                 DataY=np.concatenate([y_noisy, y_fit, y_fit - y_noisy]),
                 DataE=np.concatenate([y_err, np.zeros_like(y_err), np.zeros_like(y_err)]),
                 Nspec=3,
-                OutputWorkspace=ws_prefix+str(i),
+                OutputWorkspace=ws_prefix + str(i),
                 Distribution=True,
             )
             y_fit_sum += y_fit
@@ -46,15 +46,13 @@ class TestAnalysisFitting(unittest.TestCase):
             DataY=np.concatenate([y_noisy_sum, y_fit_sum, y_fit_sum - y_noisy_sum]),
             DataE=np.concatenate([np.random.normal(0, 0.5, len(x_data)), np.zeros_like(x_data), np.zeros_like(x_data)]),
             Nspec=3,
-            OutputWorkspace=ws_prefix+"sum",
+            OutputWorkspace=ws_prefix + "sum",
             Distribution=True,
         )
 
         mock_ws_group_name = "mock_global_fit_ws"
-        mock_ws_group = MagicMock(
-            getNames=MagicMock(return_value=[ws_prefix+"sum", *[ws_prefix+str(i) for i in range(N)]])
-        )
-        mock_ws_group.configure_mock(**{'name.return_value': mock_ws_group_name})
+        mock_ws_group = MagicMock(getNames=MagicMock(return_value=[ws_prefix + "sum", *[ws_prefix + str(i) for i in range(N)]]))
+        mock_ws_group.configure_mock(**{"name.return_value": mock_ws_group_name})
 
         with tempfile.TemporaryDirectory() as tmpdir:
             yfit_class = MagicMock()
@@ -63,15 +61,14 @@ class TestAnalysisFitting(unittest.TestCase):
             fig = plot_global_fit(mock_ws_group, yfit_class)
 
             # Check that all curves made it to the plot
-            self.assertEqual(len(fig.axes[0].lines), 2*N)
+            self.assertEqual(len(fig.axes[0].lines), 2 * N)
             self.assertEqual(len(fig.axes[1].lines), 3)
 
             self.assertTrue((yfit_class.figSavePath / (mock_ws_group_name + "_results.png")).exists())
 
         AnalysisDataService.clear()
         plt.close(fig)
-        plt.close('all')
-
+        plt.close("all")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,10 @@
+from typing import ClassVar
+
 import numpy as np
 import numpy.typing as npt
 import scipy.constants
 from mantid.simpleapi import CreateEmptyTableWorkspace, mtd
+
 from mvesuvio.globals import FitFunction
 
 
@@ -9,10 +12,10 @@ class EVSGlobals:
     # Configuration for Uranium runs / Indium runs
     # ----------------------------------------------------------------------------------------
     # Uranium sample & background run numbers
-    U_FRONTSCATTERING_SAMPLE: list[int] = [14025]  # [14025]  for U foil in the beam,   [19129, 19130] for In foil in the beam
+    U_FRONTSCATTERING_SAMPLE: ClassVar[list[int]] = [14025]  # [14025]  for U foil in the beam,   [19129, 19130] for In foil in the beam
 
     #  ['12570']  or [19132, 19134, 19136, 19138, 19140, 19142,19144, 19146, 19148, 19150, 19152] or [42209, 42210, 42211, 42212, 42213, 42214, 42215, 42216, 42217, 42218, 42219, 42220, 42221, 42222, 42223, 42224, 42225, 42226, 42227,42228] for Pb 2mm with U foil out
-    U_FRONTSCATTERING_BACKGROUND: list[int] = [
+    U_FRONTSCATTERING_BACKGROUND: ClassVar[list[int]] = [
         42209,
         42210,
         42211,
@@ -36,7 +39,7 @@ class EVSGlobals:
     ]
 
     #  ['12570']  or [19132, 19134, 19136, 19138, 19140, 19142,19144, 19146, 19148, 19150, 19152] or [42209, 42210, 42211, 42212, 42213, 42214, 42215, 42216, 42217, 42218, 42219, 42220, 42221, 42222, 42223, 42224, 42225, 42226, 42227,42228] for Pb 2mm with U foil out
-    U_BACKSCATTERING_SAMPLE: list[int] = [
+    U_BACKSCATTERING_SAMPLE: ClassVar[list[int]] = [
         42209,
         42210,
         42211,
@@ -60,7 +63,7 @@ class EVSGlobals:
     ]
 
     # ['12571'] or [42229,42230,42231,42232,42233,42234,42235,42236,42237,42238,42239,42240,42241,42242,42243,42244,42245,42246,42247,42248,42249,42250,42251,42252,42253] or  [19131, 19133, 19135, 19137, 19139, 19141, 19143, 19145, 19147, 19149, 19151]  for Pb 2mm with U foil in
-    U_BACKSCATTERING_BACKGROUND: list[int] = [
+    U_BACKSCATTERING_BACKGROUND: ClassVar[list[int]] = [
         42229,
         42230,
         42231,
@@ -89,48 +92,52 @@ class EVSGlobals:
     ]
 
     # peak enegy for U/In in mev
-    U_PEAK_ENERGIES: list[int] = [36684, 20874, 6672]  # [36684, 20874, 6672] for uranium, [39681,22723,14599,12056,9088,3855] for indium
+    U_PEAK_ENERGIES: ClassVar[list[int]] = [
+        36684,
+        20874,
+        6672,
+    ]  # [36684, 20874, 6672] for uranium, [39681,22723,14599,12056,9088,3855] for indium
     # U mass/ In mass  in amu
-    U_MASS: float = 238.0289  # 113 for indium
+    U_MASS: ClassVar[float] = 238.0289  # 113.0 for indium
 
     # misc global variables
     # ----------------------------------------------------------------------------------------
     # full range of both the front and backscattering banks
-    FRONTSCATTERING_RANGE: list[int] = [135, 198]
-    BACKSCATTERING_RANGE: list[int] = [3, 134]
-    DETECTOR_RANGE: list[int] = [BACKSCATTERING_RANGE[0], FRONTSCATTERING_RANGE[1]]
+    FRONTSCATTERING_RANGE: ClassVar[list[int]] = [135, 198]
+    BACKSCATTERING_RANGE: ClassVar[list[int]] = [3, 134]
+    DETECTOR_RANGE: ClassVar[list[int]] = [BACKSCATTERING_RANGE[0], FRONTSCATTERING_RANGE[1]]
 
     # self._fit_window_range applies bith to fitting the resonances and the lead recoil peaks
     # it is defined as the range left and right from the peak centre (i. e. the whole fitting window is twice the fitting range)
 
-    BRAGG_PEAK_CROP_RANGE: tuple[int, int] = (2000, 20000)
-    BRAGG_FIT_WINDOW_RANGE: int = 500
-    BRAGG_PEAK_POSITION_TOLERANCE: int = 1000
+    BRAGG_PEAK_CROP_RANGE: ClassVar[tuple[int, int]] = (2000, 20000)
+    BRAGG_FIT_WINDOW_RANGE: ClassVar[int] = 500
+    BRAGG_PEAK_POSITION_TOLERANCE: ClassVar[int] = 1000
 
-    RECOIL_PEAK_CROP_RANGE: tuple[int, int] = (300, 500)
-    RECOIL_FIT_WINDOW_RANGE: int = 300
+    RECOIL_PEAK_CROP_RANGE: ClassVar[tuple[int, int]] = (300, 500)
+    RECOIL_FIT_WINDOW_RANGE: ClassVar[int] = 300
 
-    RESONANCE_PEAK_CROP_RANGE: tuple[int, int] = (100, 350)
-    RESONANCE_FIT_WINDOW_RANGE: int = 50
+    RESONANCE_PEAK_CROP_RANGE: ClassVar[tuple[int, int]] = (100, 350)
+    RESONANCE_FIT_WINDOW_RANGE: ClassVar[int] = 50
 
-    PEAK_HEIGHT_RELATIVE_THRESHOLD: float = 0.25
+    PEAK_HEIGHT_RELATIVE_THRESHOLD: ClassVar[float] = 0.25
 
     # energy used to estimate peak position
-    ENERGY_ESTIMATE: float = 4897.3
+    ENERGY_ESTIMATE: ClassVar[float] = 4897.3
 
     # physical constants
     # ----------------------------------------------------------------------------------------
     # convert to 1 / v and scale for fitting
-    U_NEUTRON_VELOCITY: npt.NDArray[np.float64] = np.array(
+    U_NEUTRON_VELOCITY: ClassVar[npt.NDArray[np.float64]] = np.array(
         [83769.7, 63190.5, 35725.4]
     )  # np.array([83769.7, 63190.5, 35725.4]) # for U  # np.array([87124.5,65929.8,52845.8,48023.1,41694.9,27155.7])  # for indium
     U_NEUTRON_VELOCITY = 1.0 / U_NEUTRON_VELOCITY
     U_NEUTRON_VELOCITY *= 1e6
 
     # mass of a neutron in amu
-    NEUTRON_MASS_AMU: float = scipy.constants.value("neutron mass in u")
+    NEUTRON_MASS_AMU: ClassVar[float] = scipy.constants.value("neutron mass in u")
     # 1 meV in Joules
-    MEV_CONVERSION: float = 1.602176487e-22
+    MEV_CONVERSION: ClassVar[float] = 1.602176487e-22
 
 
 class EVSMiscFunctions:

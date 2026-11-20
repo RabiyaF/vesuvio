@@ -1,54 +1,52 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from mantid import AnalysisDataService
-import matplotlib.pyplot as plt
-from mantid.simpleapi import (
-    mtd,
-    Load,
-    RenameWorkspace,
-    SumSpectra,
-    CropWorkspace,
-    MaskDetectors,
-    DeleteWorkspaces,
-    CreateEmptyTableWorkspace,
-    DeleteWorkspace,
-    SaveNexus,
-    LoadVesuvio,
-    Divide,
-    Rebin,
-    ConvertToYSpace,
-    Integration,
-    CloneWorkspace,
-    WeightedMean,
-    AppendSpectra,
-    SaveAscii,
-)
-from mantid.kernel import logger
-import numpy as np
 import math
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from mvesuvio.globals import ModeRunning, ScatteringType, Tags, Masking
-from mvesuvio.util.files_manager import FilesManager
-from mvesuvio.util import general_helpers, handle_config
-from mvesuvio.util.general_helpers import pass_data_into_ws, print_table_workspace, extractWS
-from mvesuvio.util.constraints_transport import serialize_constraints
-from mvesuvio.util import fitting_helpers
-from mvesuvio.analysis_reduction import VesuvioAnalysisRoutine
+import matplotlib.pyplot as plt
+import numpy as np
+from mantid import AnalysisDataService
 from mantid.api import AlgorithmFactory, AlgorithmManager
+from mantid.kernel import logger
+from mantid.simpleapi import (
+    AppendSpectra,
+    CloneWorkspace,
+    ConvertToYSpace,
+    CreateEmptyTableWorkspace,
+    CropWorkspace,
+    DeleteWorkspace,
+    DeleteWorkspaces,
+    Divide,
+    Integration,
+    Load,
+    LoadVesuvio,
+    MaskDetectors,
+    Rebin,
+    RenameWorkspace,
+    SaveAscii,
+    SaveNexus,
+    SumSpectra,
+    WeightedMean,
+    mtd,
+)
+
+from mvesuvio.analysis_reduction import VesuvioAnalysisRoutine
+from mvesuvio.globals import Masking, ModeRunning, ScatteringType, Tags
+from mvesuvio.util import fitting_helpers, general_helpers, handle_config
+from mvesuvio.util.constraints_transport import serialize_constraints
+from mvesuvio.util.files_manager import FilesManager
+from mvesuvio.util.general_helpers import extractWS, pass_data_into_ws, print_table_workspace
 
 if TYPE_CHECKING:
     from mvesuvio.default_config.experiment_template.run_reduction import BackwardAnalysisInputs, ForwardAnalysisInputs
 
+import contextlib
 import ntpath
 
-try:
+with contextlib.suppress(OSError):
     plt.style.use(["ggplot", handle_config.get_plots_config_file()])
-except OSError:
-    pass
 
 
 def run_estimate_h_ratio(back_alg, front_alg, back_masses, back_chosen_mass_index, rtol, max_iter):
@@ -164,7 +162,6 @@ def execute_joint_algorithms(back_alg, front_alg):
     front_alg.setPropertyValue("InputProfiles", receiving_profiles_table.name())
 
     front_alg.execute()
-    return
 
 
 def fix_profile_parameters(incoming_means_table, receiving_profiles_table, h_ratio):
@@ -227,7 +224,7 @@ def _get_lightest_profile(p_dict):
     return profiles[np.argmin(masses)]
 
 
-def init_analysis_algorithm(ws_name: str, inputs_class: type[BackwardAnalysisInputs] | type[ForwardAnalysisInputs]):
+def init_analysis_algorithm(ws_name: str, inputs_class: type[BackwardAnalysisInputs | ForwardAnalysisInputs]):
     # Skip if workspace not found in ADS
     if not AnalysisDataService.doesExist(ws_name):
         logger.warning(f"\n{ws_name} not found in ADS: Skipping cropping and masking ...\n")
@@ -323,9 +320,11 @@ def save_results_from_outputs(
     if minimal_output:
         final_prefix = final_iteration_workspace_name + "_"
         for ws_name in all_workspaces:
-            if ws_name in (final_iteration_workspace_name + "_total_ncp", final_iteration_workspace_name + "_total_fse"):
-                SaveAscii(ws_name, str(output_directory / ws_name) + ".txt")
-            elif ws_name.startswith(final_prefix) and ws_name.endswith(("_fit_results", "_means")):
+            if (
+                ws_name in (final_iteration_workspace_name + "_total_ncp", final_iteration_workspace_name + "_total_fse")
+                or ws_name.startswith(final_prefix)
+                and ws_name.endswith(("_fit_results", "_means"))
+            ):
                 SaveAscii(ws_name, str(output_directory / ws_name) + ".txt")
         return
 
@@ -336,7 +335,7 @@ def save_results_from_outputs(
             SaveNexus(ws_name, str(output_directory / ws_name) + ".nxs")
 
 
-def crop_and_mask_workspace(ws_name, inputs_class: type[BackwardAnalysisInputs] | type[ForwardAnalysisInputs]):
+def crop_and_mask_workspace(ws_name, inputs_class: type[BackwardAnalysisInputs | ForwardAnalysisInputs]):
     """Returns cloned and cropped workspace with modified name"""
 
     match = re.fullmatch(r"\s*(\d+)\s*-\s*(\d+)\s*", inputs_class.detectors)
@@ -357,10 +356,9 @@ def crop_and_mask_workspace(ws_name, inputs_class: type[BackwardAnalysisInputs] 
     # histogram and then back to point data removes masked flag on the bins.
     # Better to just set y data to zeros directly.
     mask_time_of_flight_bins_with_zeros(ws_name, inputs_class)
-    return
 
 
-def load_input_ws(input_class: type[BackwardAnalysisInputs] | type[ForwardAnalysisInputs]):
+def load_input_ws(input_class: type[BackwardAnalysisInputs | ForwardAnalysisInputs]):
     raw_path, empty_path = store_input_ws_if_not_on_path(input_class)
 
     raw_name = raw_path.stem
@@ -376,7 +374,7 @@ def load_input_ws(input_class: type[BackwardAnalysisInputs] | type[ForwardAnalys
 
 
 def store_input_ws_if_not_on_path(
-    inputs_class: type[BackwardAnalysisInputs] | type[ForwardAnalysisInputs],
+    inputs_class: type[BackwardAnalysisInputs | ForwardAnalysisInputs],
 ) -> tuple[Path, Path]:
     scattering_type = general_helpers._get_scattering_type(inputs_class)
 
@@ -414,7 +412,7 @@ def convert_to_list_of_spectrum_numbers(detectors):
         detector_ranges = [r.split("-") for r in detectors.replace(" ", "").split(",")]
         return [i for r in detector_ranges for i in range(int(r[0]), int(r[-1]) + 1)]
 
-    if isinstance(detectors, list) or isinstance(detectors, np.ndarray):
+    if isinstance(detectors, (list, np.ndarray)):
         return [int(d) for d in detectors]
 
     raise ValueError("Type not recognized: Masked detectors should be string, list or array.")
@@ -468,11 +466,10 @@ def save_ws_from_load_vesuvio(runs, mode, ipfile, ws_path):
 
     SaveNexus(vesuvio_ws, Filename=str(ws_path.absolute()))
     print(f"Workspace saved locally at: {ws_path.absolute()}")
-    return
 
 
 def save_fitting_input_workspaces(
-    analysis_inputs: type[BackwardAnalysisInputs] | type[ForwardAnalysisInputs] | None,
+    analysis_inputs: type[BackwardAnalysisInputs | ForwardAnalysisInputs] | None,
 ) -> None:
     fitting_inputs_dir = FilesManager.get_fitting_inputs_dir()
     fitting_inputs_dir.mkdir(parents=True, exist_ok=True)
@@ -518,7 +515,7 @@ def save_fitting_input_workspaces(
     SaveNexus(ws_joy_avg, str(fitting_inputs_dir / f"{workspace_name}_joy_avg.nxs"))
 
 
-def mask_time_of_flight_bins_with_zeros(ws_name, inputs_class: type[BackwardAnalysisInputs] | type[ForwardAnalysisInputs]):
+def mask_time_of_flight_bins_with_zeros(ws_name, inputs_class: type[BackwardAnalysisInputs | ForwardAnalysisInputs]):
     """
     Masks a given TOF range on ws with zeros on dataY.
     Leaves errors dataE unchanged, as they are used by later treatments.
@@ -540,7 +537,6 @@ def mask_time_of_flight_bins_with_zeros(ws_name, inputs_class: type[BackwardAnal
             for x_min, x_max in ranges:
                 masked |= (x >= x_min) & (x <= x_max)
             ws.mutableY(i)[masked] = 0
-    return
 
 
 def create_profiles_table(name, ai):
@@ -592,7 +588,7 @@ def create_profiles_table(name, ai):
     return table
 
 
-def y_space_reduction(wsTOF, ws_ncp, inputs: type[BackwardAnalysisInputs] | type[ForwardAnalysisInputs]):
+def y_space_reduction(wsTOF, ws_ncp, inputs: type[BackwardAnalysisInputs | ForwardAnalysisInputs]):
     """Seperate procedures depending on masking specified."""
     mass0 = inputs.masses[0]
     ncp = ws_ncp.extractY()

@@ -1,35 +1,36 @@
-from mantid.kernel import (
-    Direction,
-    StringListValidator,
-    IntArrayBoundedValidator,
-    IntArrayProperty,
-    FloatArrayBoundedValidator,
-    StringMandatoryValidator,
-    IntBoundedValidator,
-    FloatArrayProperty,
-)
-from mantid.api import FileProperty, FileAction, PythonAlgorithm, AlgorithmManager, WorkspaceGroupProperty
-from mantid.simpleapi import (
-    CreateEmptyTableWorkspace,
-    DeleteWorkspace,
-    ReplaceSpecialValues,
-    GroupWorkspaces,
-    mtd,
-    ConvertTableToMatrixWorkspace,
-    ConjoinWorkspaces,
-    Transpose,
-    PlotPeakByLogValue,
-    RenameWorkspace,
-)
-from mvesuvio.util.calibration_helpers import EVSGlobals, EVSMiscFunctions, InvalidDetectors
-from mvesuvio.globals import PeakType, Mode, SharedParameterFitType, FitFunction
-
 import os
 import sys
-from scipy.constants import m_n as neutron_mass
-from scipy.constants import h as planck_constant
-from scipy.stats import sem as standard_error_mean
+
 import numpy as np
+from mantid.api import AlgorithmManager, FileAction, FileProperty, PythonAlgorithm, WorkspaceGroupProperty
+from mantid.kernel import (
+    Direction,
+    FloatArrayBoundedValidator,
+    FloatArrayProperty,
+    IntArrayBoundedValidator,
+    IntArrayProperty,
+    IntBoundedValidator,
+    StringListValidator,
+    StringMandatoryValidator,
+)
+from mantid.simpleapi import (
+    ConjoinWorkspaces,
+    ConvertTableToMatrixWorkspace,
+    CreateEmptyTableWorkspace,
+    DeleteWorkspace,
+    GroupWorkspaces,
+    PlotPeakByLogValue,
+    RenameWorkspace,
+    ReplaceSpecialValues,
+    Transpose,
+    mtd,
+)
+from scipy.constants import h as planck_constant
+from scipy.constants import m_n as neutron_mass
+from scipy.stats import sem as standard_error_mean
+
+from mvesuvio.globals import FitFunction, Mode, PeakType, SharedParameterFitType
+from mvesuvio.util.calibration_helpers import EVSGlobals, EVSMiscFunctions, InvalidDetectors
 
 
 class EVSCalibrationAnalysis(PythonAlgorithm):
@@ -238,7 +239,7 @@ class EVSCalibrationAnalysis(PythonAlgorithm):
             self._param_table = self._current_workspace
 
             if i < self._iterations - 1:
-                self._current_workspace = self._output_workspace_name + "_Iteration_%d" % (i + 1)
+                self._current_workspace = f"{self._output_workspace_name}_Iteration_{i + 1:d}"
                 self._create_calib_parameter_table(self._current_workspace)
 
                 # copy over L0 and t0 parameters to new table
@@ -527,7 +528,7 @@ class EVSCalibrationAnalysis(PythonAlgorithm):
         # extract fit data to workspace
         peak_workspaces = []
         for i, param_ws in enumerate(mtd[table_workspace_group].getNames()):
-            temp_peak_data = "__temp_peak_ws_%d" % i
+            temp_peak_data = f"__temp_peak_ws_{i:d}"
             ConvertTableToMatrixWorkspace(
                 InputWorkspace=param_ws, OutputWorkspace=temp_peak_data, ColumnX="Spectrum", ColumnY="f1.PeakCentre"
             )
@@ -562,7 +563,7 @@ class EVSCalibrationAnalysis(PythonAlgorithm):
         @param ws_name - name of the workspace to save the IP file from.
         @param spec_list - spectrum range to save to file.
         """
-        file_header = "\t".join(["plik", "det", "theta", "t0", "L0", "L1"])
+        file_header = "plik\tdet\ttheta\tt0\tL0\tL1"
         fmt = "%d  %d  %.4f  %.4f  %.3f  %.4f"
 
         kwargs = {

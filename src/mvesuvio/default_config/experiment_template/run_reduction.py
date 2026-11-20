@@ -1,12 +1,13 @@
-import mvesuvio
-from mantid.simpleapi import Rebin, Scale, Minus, SetSample, SaveAscii, mtd
-from pathlib import Path
 import math
-from typing import Dict
+from pathlib import Path
+from typing import Any, ClassVar
+
+from mantid.simpleapi import Minus, Rebin, SaveAscii, Scale, SetSample, mtd
+
+import mvesuvio
 from mvesuvio import ConfigArgInputs
 from mvesuvio.globals import Masking, Mode
-from mvesuvio.util import general_helpers
-from mvesuvio.util import reduction_helpers
+from mvesuvio.util import general_helpers, reduction_helpers
 from mvesuvio.util.files_manager import FilesManager
 
 
@@ -16,10 +17,10 @@ class SharedGeometry:
     Cylinder volume is the same as slab volume.
     """
 
-    slab_height_cm: float = 10.0
-    slab_width_cm: float = 10.0
-    slab_thickness_cm: float = 0.1
-    cylinder_height_cm: float = 10.0
+    slab_height_cm: ClassVar[float] = 10.0
+    slab_width_cm: ClassVar[float] = 10.0
+    slab_thickness_cm: ClassVar[float] = 0.1
+    cylinder_height_cm: ClassVar[float] = 10.0
 
     @property
     def slab_volume_cm3(self) -> float:
@@ -33,7 +34,7 @@ class SharedGeometry:
     def cylinder_volume_cm3(self) -> float:
         return math.pi * self.cylinder_radius_cm**2 * self.cylinder_height_cm
 
-    def slab_dict(self) -> Dict[str, object]:
+    def slab_dict(self) -> dict[str, object]:
         """SetSample FlatPlate dictionary, dimensions in cm."""
         return {
             "Shape": "FlatPlate",
@@ -44,7 +45,7 @@ class SharedGeometry:
             "Angle": 0.0,
         }
 
-    def cylinder_dict(self) -> Dict[str, object]:
+    def cylinder_dict(self) -> dict[str, object]:
         """SetSample Cylinder dictionary, dimensions in cm."""
         return {
             "Shape": "Cylinder",
@@ -69,119 +70,130 @@ RECOIL_WEIGHT = {element: STOICHIOMETRY[element] * BOUND_SCATTERING_XS_BARN[elem
 
 
 class BackwardAnalysisInputs:
-    run_this_scattering_type = True
-    minimal_output = False
+    run_this_scattering_type: ClassVar[bool] = True
+    minimal_output: ClassVar[bool] = False
 
     # Name of workspace to use as input of analysis, instead of using the runs below
     # If already loaded, picks up the name in Mantid, otherwise attempts to load with Load()
     # Leave empty to use the runs specified below
-    overwrite_analysis_input_workspace = ""
+    overwrite_analysis_input_workspace: ClassVar[str] = ""
 
-    runs = "43066-43076"  # Runs of your sample dataset
-    empty_runs = "41876-41923"  # Empty CCR
+    runs: ClassVar[str] = "43066-43076"  # Runs of your sample dataset
+    empty_runs: ClassVar[str] = "41876-41923"  # Empty CCR
     mode = Mode.DOUBLE_DIFFERENCE
-    instrument_parameters_file = "ip2019.par"
-    detectors = "3-134"
-    mask_detectors = [18, 34, 42, 43, 59, 60, 62, 118, 119, 133]  # Can also be a string "18, 34, 42-43, 59-60, 62, 118-119, 133"
-    time_of_flight_binning = "275.,1.,420"
-    mask_time_of_flight_range = None  # Can be string eg. "110-120, 200-210"
+    instrument_parameters_file: ClassVar[str] = "ip2019.par"
+    detectors: ClassVar[str] = "3-134"
+    mask_detectors: ClassVar[list[int] | str] = [
+        18,
+        34,
+        42,
+        43,
+        59,
+        60,
+        62,
+        118,
+        119,
+        133,
+    ]  # Can also be a string "18, 34, 42-43, 59-60, 62, 118-119, 133"
+    time_of_flight_binning: ClassVar[str] = "275.,1.,420"
+    mask_time_of_flight_range: ClassVar[str | None] = None  # Can be string eg. "110-120, 200-210"
     # Scaling factors, leave at default of 1 for most cases
-    scale_empty_workspace = 1
-    scale_raw_workspace = 1
-    name_of_subtracted_workspace = "back"
+    scale_empty_workspace: ClassVar[int] = 1
+    scale_raw_workspace: ClassVar[int] = 1
+    name_of_subtracted_workspace: ClassVar[str] = "back"
 
     # Atomic mass in a.m.u. of each element/isotope present in sample + cell EXCEPT HYDROGEN
-    masses = [12, 16, 27]
+    masses: ClassVar[list[int]] = [12, 16, 27]
 
     # fmt: off
-    initial_fitting_parameters = [  # NCP intensities, NCP widths, NCP centers
+    initial_fitting_parameters: ClassVar[list[float]] = [  # NCP intensities, NCP widths, NCP centers
         1, 12, 0.0,
         1, 12, 0.0,
         1, 12.5, 0.0,
     ]
-    fitting_bounds = [
+    fitting_bounds: ClassVar[list[list[float | None]]] = [
         [0, None], [8, 16], [-3, 1],
         [0, None], [8, 16], [-3, 1],
         [0, None], [11, 14], [-3, 1],
     ]
     # fmt: on
-    constraints = {"type": "eq", "fun": lambda par: (RECOIL_WEIGHT["C"] * par[0] - RECOIL_WEIGHT["O"] * par[3])}
+    constraints: ClassVar[dict[str, Any]] = {"type": "eq", "fun": lambda par: RECOIL_WEIGHT["C"] * par[0] - RECOIL_WEIGHT["O"] * par[3]}
 
-    number_of_iterations_for_corrections = 0  # 4
+    number_of_iterations_for_corrections: ClassVar[int] = 0  # 4
     # Y-space reduction is performed at the end of reduction and its outputs are used by run_fitting.py
-    range_for_rebinning_in_y_space = "-25, 0.5, 25"  # Needs to be symetric, usually bounds = 10 x lowest mass (a.m.u.)
-    subtract_calculated_fse_from_data = True
-    do_symmetrisation = False
+    range_for_rebinning_in_y_space: ClassVar[str] = "-25, 0.5, 25"  # Needs to be symetric, usually bounds = 10 x lowest mass (a.m.u.)
+    subtract_calculated_fse_from_data: ClassVar[bool] = True
+    do_symmetrisation: ClassVar[bool] = False
     # Type of masking
     # Masking.NAN: Zeros in workspace being fit are ignored
     # Masking.NCP: Zeros in workspace being fit are replaced by the fitted neutron compton profile
     mask_zeros_with = Masking.NAN
-    do_multiple_scattering_correction = True
+    do_multiple_scattering_correction: ClassVar[bool] = True
     # Exact recoil ratio used to estimate Hydrogen intensity
-    chosen_mass_index = 0  # C is indexed 0 in backward masses list
+    chosen_mass_index: ClassVar[int] = 0  # C is indexed 0 in backward masses list
     intensity_ratio_of_hydrogen_to_chosen_mass = (
         RECOIL_WEIGHT["H"] / RECOIL_WEIGHT["C"]
         # Set to zero to estimate
     )
-    transmission_guess = 0.8  # [1 - 2(1-T)] --> Twice the absorption, T: Experimental value from VesuvioTransmission
-    multiple_scattering_order = 2
-    multiple_scattering_number_of_events = 1.0e5  # 1.0e6 for smoother correction, at the cost of higher execution time
-    do_gamma_correction = False
+    transmission_guess: ClassVar[float] = 0.8  # [1 - 2(1-T)] --> Twice the absorption, T: Experimental value from VesuvioTransmission
+    multiple_scattering_order: ClassVar[int] = 2
+    multiple_scattering_number_of_events: ClassVar[float] = 1.0e5  # 1.0e6 for smoother correction, at the cost of higher execution time
+    do_gamma_correction: ClassVar[bool] = False
 
 
 class ForwardAnalysisInputs:
-    run_this_scattering_type = True
-    minimal_output = False
+    run_this_scattering_type: ClassVar[bool] = True
+    minimal_output: ClassVar[bool] = False
 
     # Name of workspace to use as input of analysis, instead of using the runs below
     # If already loaded, picks up the name in Mantid, otherwise attempts to load with Load()
     # Leave empty to use the runs specified below
-    overwrite_analysis_input_workspace = ""
+    overwrite_analysis_input_workspace: ClassVar[str] = ""
 
-    runs = "43066-43076"
-    empty_runs = "43868-43911"  # Empty CCR
+    runs: ClassVar[str] = "43066-43076"
+    empty_runs: ClassVar[str] = "43868-43911"  # Empty CCR
     mode = Mode.SINGLE_DIFFERENCE
-    instrument_parameters_file = "ip2018_3.par"
-    detectors = "144-182"
-    mask_detectors = [173, 174, 179]  # Can also be a string "173-174, 179"
-    time_of_flight_binning = "110,1,430"
-    mask_time_of_flight_range = None  # Can be string Eg. "110-120, 200-210"
+    instrument_parameters_file: ClassVar[str] = "ip2018_3.par"
+    detectors: ClassVar[str] = "144-182"
+    mask_detectors: ClassVar[list[int] | str] = [173, 174, 179]  # Can also be a string "173-174, 179"
+    time_of_flight_binning: ClassVar[str] = "110,1,430"
+    mask_time_of_flight_range: ClassVar[str | None] = None  # Can be string Eg. "110-120, 200-210"
     # Scaling factors, leave at default of 1 for most cases
-    scale_empty_workspace = 1
-    scale_raw_workspace = 1
-    name_of_subtracted_workspace = "front"
+    scale_empty_workspace: ClassVar[int] = 1
+    scale_raw_workspace: ClassVar[int] = 1
+    name_of_subtracted_workspace: ClassVar[str] = "front"
 
-    masses = [1.0079, 12, 16, 27]  # Atomic mass in a.m.u. of each element/isotope present in sample + cell
+    masses: ClassVar[list[float]] = [1.0079, 12, 16, 27]  # Atomic mass in a.m.u. of each element/isotope present in sample + cell
     # fmt: off
-    initial_fitting_parameters = [  # Intensities, NCP widths, NCP centers
+    initial_fitting_parameters: ClassVar[list[float]] = [  # Intensities, NCP widths, NCP centers
         1, 4.7, 0.0,
         1, 12.71, 0.0,
         1, 8.76, 0.0,
         1, 13.897, 0.0,
     ]
-    fitting_bounds = [
+    fitting_bounds: ClassVar[list[list[float | None]]] = [
         [0, None], [3, 6], [-3, 1],
         [0, None], [12.71, 12.71], [-3, 1],
         [0, None], [8.76, 8.76], [-3, 1],
         [0, None], [13.897, 13.897], [-3, 1],
     ]
     # fmt: on
-    constraints = {"type": "eq", "fun": lambda par: (RECOIL_WEIGHT["C"] * par[3] - RECOIL_WEIGHT["O"] * par[6])}
+    constraints: ClassVar[dict[str, Any]] = {"type": "eq", "fun": lambda par: RECOIL_WEIGHT["C"] * par[3] - RECOIL_WEIGHT["O"] * par[6]}
 
-    number_of_iterations_for_corrections = 1  # 4
+    number_of_iterations_for_corrections: ClassVar[int] = 1  # 4
     # Y-space reduction is performed at the end of reduction and its outputs are used by run_fitting.py
-    range_for_rebinning_in_y_space = "-25, 0.5, 25"  # Needs to be symetric, usually bounds = 10 x lowest mass (a.m.u.)
-    subtract_calculated_fse_from_data = True
-    do_symmetrisation = False
+    range_for_rebinning_in_y_space: ClassVar[str] = "-25, 0.5, 25"  # Needs to be symetric, usually bounds = 10 x lowest mass (a.m.u.)
+    subtract_calculated_fse_from_data: ClassVar[bool] = True
+    do_symmetrisation: ClassVar[bool] = False
     # Type of masking
     # Masking.NAN: Zeros in workspace being fit are ignored
     # Masking.NCP: Zeros in workspace being fit are replaced by the fitted neutron compton profile
     mask_zeros_with = Masking.NAN
-    do_multiple_scattering_correction = True
-    transmission_guess = 0.9  # T : Experimental value from VesuvioTransmission
-    multiple_scattering_order = 2
-    multiple_scattering_number_of_events = 1.0e5  # 1.0e6 for smoother correction, at the cost of higher execution time
-    do_gamma_correction = True
+    do_multiple_scattering_correction: ClassVar[bool] = True
+    transmission_guess: ClassVar[float] = 0.9  # T : Experimental value from VesuvioTransmission
+    multiple_scattering_order: ClassVar[int] = 2
+    multiple_scattering_number_of_events: ClassVar[float] = 1.0e5  # 1.0e6 for smoother correction, at the cost of higher execution time
+    do_gamma_correction: ClassVar[bool] = True
 
 
 ########################

@@ -4,12 +4,13 @@ import argparse
 import runpy
 from os import path
 from pathlib import Path
+
 from mvesuvio.util import handle_config
 from mvesuvio.util.files_manager import FilesManager
 
 
 def main(manual_args=None):
-    args = _setup_and_parse_args() if not manual_args else manual_args
+    args = manual_args if manual_args else _setup_and_parse_args()
     if args.command == "version":
         _print_version()
 
@@ -81,7 +82,6 @@ def _setup_config(args):
             "caching.ipfolder": ipfolder_dir,
         }
     )
-    return
 
 
 def _set_logging_properties():
@@ -107,7 +107,6 @@ def _set_logging_properties():
     # Need to set properties on file in Mantid installation
     mantid_properties_file = path.join(ConfigService.getPropertiesDir(), "Mantid.properties")
     ConfigService.saveConfig(mantid_properties_file)
-    return
 
 
 def _run_analysis(args):

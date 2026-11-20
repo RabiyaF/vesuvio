@@ -1,82 +1,86 @@
-from mvesuvio.util.files_manager import FilesManager
-from mvesuvio.calibrate_analysis import EVSCalibrationAnalysis
-from mvesuvio.calibrate_fit import EVSCalibrationFit
+import ntpath
+from functools import wraps
+from pathlib import Path
+from typing import ClassVar, Literal
+
+import numpy as np
+from mantid.api import AlgorithmFactory, AlgorithmManager, WorkspaceGroup
+from mantid.kernel import logger
+from mantid.simpleapi import ConvertToDistribution, Load, LoadRaw, LoadVesuvio, SaveNexus, mtd
+from numpy.typing import NDArray
+
 import mvesuvio
 from mvesuvio import ConfigArgInputs
-from mantid.api import AlgorithmManager, AlgorithmFactory, WorkspaceGroup
-from mantid.simpleapi import LoadVesuvio, LoadRaw, ConvertToDistribution, mtd, Load, SaveNexus
-from mantid.kernel import logger
+from mvesuvio.calibrate_analysis import EVSCalibrationAnalysis
+from mvesuvio.calibrate_fit import EVSCalibrationFit
+from mvesuvio.globals import Mode, SharedParameterFitType
 from mvesuvio.util.calibration_helpers import EVSGlobals
-from mvesuvio.globals import SharedParameterFitType, Mode
-import numpy as np
-from numpy.typing import NDArray
-from typing import Literal
-from pathlib import Path
-from functools import wraps
-import ntpath
+from mvesuvio.util.files_manager import FilesManager
 
 
 class EVSCalibrationAnalysisInputs:
     # Sample run numbers to fit peaks to (cannot be an empty str)
     # Samples: str = [17087, 17088]
-    Samples: list[int] = [17087]
+    Samples: ClassVar[list[int]] = [17087]
 
     # Run numbers to use as a background (can be empty)
-    Background: list[int] = [17086]
+    Background: ClassVar[list[int]] = [17086]
 
     # Filename of the instrument parameter file.
-    InstrumentParameterFile: str = str(FilesManager.get_instrument_parameters_dir() / "IP0005.par")
+    InstrumentParameterFile: ClassVar[str] = str(FilesManager.get_instrument_parameters_dir() / "IP0005.par")
 
     # Mass of the sample in amu to be used when calculating energy.
     # Default is Pb: 207.19
-    Mass: float = 63.546  # Mass of copper in amu
+    Mass: ClassVar[float] = 63.546  # Mass of copper in amu
 
     # List of d-spacings used to estimate the positions of peaks in TOF.
-    DSpacings: NDArray[np.float64] = np.array([2.0865, 1.807, 1.278, 1.0897])  # d-spacings of a copper samp
+    DSpacings: ClassVar[NDArray[np.float64]] = np.array([2.0865, 1.807, 1.278, 1.0897])  # d-spacings of a copper samp
 
     # Value at which to fix E1 value and E1 error (form: E1 value, E1 Error).
     # If no input is provided, values will be calculated
     # Default is []
-    E1FixedValueAndError: list[float] = []
+    E1FixedValueAndError: ClassVar[list[float]] = []
 
     # List of detectors to be marked as invalid (3-198),
     # to be excluded from analysis calculations.
     # Default is []
-    InvalidDetectors: list[int] = []
+    InvalidDetectors: ClassVar[list[int]] = []
 
     # Number of iterations to perform.
     # Default is 2
-    Iterations: int = 1
+    Iterations: ClassVar[int] = 1
 
     # Calculate shared parameters using an individual and/or global fit
     # Default is SharedParameterFitType.INDIVIDUAL
-    SharedParameterFitType: Literal["Individual", "Shared", "Both"] = SharedParameterFitType.INDIVIDUAL.value
+    SharedParameterFitType: ClassVar[Literal["Individual", "Shared", "Both"]] = SharedParameterFitType.INDIVIDUAL.value
 
     # Whether to create output from fitting.
     # Default is False
-    CreateOutput: bool = False
+    CreateOutput: ClassVar[bool] = False
 
     # Whether to calculate L0 or just use the values from the parameter file.
     # Default is False
-    CalculateL0: bool = False
+    CalculateL0: ClassVar[bool] = False
 
     # Whether to save the output as an IP file. This file will use the
     # same name as the OutputWorkspace and will be saved to the default
     # save directory.
     # Default is False
-    CreateIPFile: bool = False
+    CreateIPFile: ClassVar[bool] = False
 
     # Name to call the output workspace
     # Default is ""
-    OutputWorkspace: str = "copper_analysis_test"
+    OutputWorkspace: ClassVar[str] = "copper_analysis_test"
 
     # Mode to load files with. This is passed to the LoadVesuvio algorithm.
     # Default is FoilOut
-    Mode: Literal["SingleDifference", "DoubleDifference", "ThickDifference", "FoilOut", "FoilIn", "FoilInOut"] = Mode.FOIL_OUT.value
+    Mode: ClassVar[Literal["SingleDifference", "DoubleDifference", "ThickDifference", "FoilOut", "FoilIn", "FoilInOut"]] = (
+        Mode.FOIL_OUT.value
+    )
 
     # Spectrum range to use.
     # EVSGlobals.DETECTOR_RANGE [3, 198]
-    SpectrumRange: list[int] = EVSGlobals.DETECTOR_RANGE
+    SpectrumRange: ClassVar[list[int]] = EVSGlobals.DETECTOR_RANGE
 
 
 ########################
