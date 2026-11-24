@@ -1,4 +1,3 @@
-
 import tempfile
 import unittest
 from pathlib import Path
@@ -20,9 +19,8 @@ class TestReductionHelpers(unittest.TestCase):
         self.addCleanup(patcher.stop)
 
     def test_save_plots_from_outputs_skips_minimal_output(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with patch.object(reduction_helpers.plt, "subplots") as mock_subplots:
-                reduction_helpers.save_plots_from_outputs("input_0_ncp_group", Path(temp_dir), minimal_output=True)
+        with tempfile.TemporaryDirectory() as temp_dir, patch.object(reduction_helpers.plt, "subplots") as mock_subplots:
+            reduction_helpers.save_plots_from_outputs("input_0_ncp_group", Path(temp_dir), minimal_output=True)
 
         mock_subplots.assert_not_called()
 
@@ -91,9 +89,7 @@ class TestReductionHelpers(unittest.TestCase):
             patch.object(reduction_helpers, "SaveAscii") as save_ascii,
             patch.object(reduction_helpers, "SaveNexus") as save_nexus,
         ):
-            reduction_helpers.save_results_from_outputs(
-                "input", "input_0_ncp_group", output_directory
-            )
+            reduction_helpers.save_results_from_outputs("input", "input_0_ncp_group", output_directory)
 
         self.assertEqual(
             save_ascii.call_args_list,
@@ -120,16 +116,11 @@ class TestReductionHelpers(unittest.TestCase):
             patch.object(reduction_helpers, "SaveAscii") as save_ascii,
             patch.object(reduction_helpers, "SaveNexus") as save_nexus,
         ):
-            reduction_helpers.save_results_from_outputs(
-                "input", "input_1_ncp_group", output_directory, minimal_output=True
-            )
+            reduction_helpers.save_results_from_outputs("input", "input_1_ncp_group", output_directory, minimal_output=True)
 
         self.assertEqual(
             save_ascii.call_args_list,
-            [
-                call(name, str(output_directory / f"{name}.txt"))
-                for name in workspaces[1:5]
-            ],
+            [call(name, str(output_directory / f"{name}.txt")) for name in workspaces[1:5]],
         )
         save_nexus.assert_not_called()
 
@@ -149,17 +140,27 @@ class TestReductionHelpers(unittest.TestCase):
 
             GroupWorkspaces(["front_0_1.0079_ncp", "front_0_12_ncp"], OutputWorkspace="front_0_ncp_group")
 
-            with patch.object(reduction_helpers, "SaveNexus") as mock_save_nexus:
-                with patch.object(reduction_helpers.fitting_helpers, "calculate_resolution", return_value=MagicMock()):
-                    with patch.object(reduction_helpers.fitting_helpers, "isolate_lighest_mass_data", return_value=(MagicMock(), MagicMock())):
-                        ForwardAnalysisInputs.name = "front"
-                        ForwardAnalysisInputs.name_of_subtracted_workspace = "front"
-                        ForwardAnalysisInputs.overwrite_analysis_input_workspace = ""
-                        ForwardAnalysisInputs.run_this_scattering_type = True
-                        ForwardAnalysisInputs.number_of_iterations_for_corrections = 0
-                        ForwardAnalysisInputs.subtract_calculated_fse_from_data = False
+            with (
+                patch.object(reduction_helpers, "SaveNexus") as mock_save_nexus,
+                patch.object(
+                    reduction_helpers.fitting_helpers,
+                    "calculate_resolution",
+                    return_value=MagicMock(),
+                ),
+                patch.object(
+                    reduction_helpers.fitting_helpers,
+                    "isolate_lighest_mass_data",
+                    return_value=(MagicMock(), MagicMock()),
+                ),
+            ):
+                ForwardAnalysisInputs.name = "front"
+                ForwardAnalysisInputs.name_of_subtracted_workspace = "front"
+                ForwardAnalysisInputs.overwrite_analysis_input_workspace = ""
+                ForwardAnalysisInputs.run_this_scattering_type = True
+                ForwardAnalysisInputs.number_of_iterations_for_corrections = 0
+                ForwardAnalysisInputs.subtract_calculated_fse_from_data = False
 
-                        reduction_helpers.save_fitting_input_workspaces(ForwardAnalysisInputs)
+                reduction_helpers.save_fitting_input_workspaces(ForwardAnalysisInputs)
 
             self.assertEqual(mock_save_nexus.call_count, 3)
             self.assertTrue(FilesManager.get_fitting_inputs_dir().exists())
@@ -182,20 +183,26 @@ class TestReductionHelpers(unittest.TestCase):
             RenameWorkspace(ncp, "override_front_0_12_ncp")
             GroupWorkspaces(["override_front_0_12_ncp"], OutputWorkspace="override_front_0_ncp_group")
 
-            with patch.object(reduction_helpers, "SaveNexus") as mock_save_nexus:
-                with patch.object(reduction_helpers.fitting_helpers, "calculate_resolution", return_value=MagicMock()):
-                    with patch.object(
-                        reduction_helpers.fitting_helpers,
-                        "isolate_lighest_mass_data",
-                        return_value=(MagicMock(), MagicMock()),
-                    ):
-                        ForwardAnalysisInputs.run_this_scattering_type = True
-                        ForwardAnalysisInputs.number_of_iterations_for_corrections = 0
-                        ForwardAnalysisInputs.subtract_calculated_fse_from_data = False
-                        ForwardAnalysisInputs.overwrite_analysis_input_workspace = "override_front"
-                        ForwardAnalysisInputs.name_of_subtracted_workspace = "front_subtracted"
+            with (
+                patch.object(reduction_helpers, "SaveNexus") as mock_save_nexus,
+                patch.object(
+                    reduction_helpers.fitting_helpers,
+                    "calculate_resolution",
+                    return_value=MagicMock(),
+                ),
+                patch.object(
+                    reduction_helpers.fitting_helpers,
+                    "isolate_lighest_mass_data",
+                    return_value=(MagicMock(), MagicMock()),
+                ),
+            ):
+                ForwardAnalysisInputs.run_this_scattering_type = True
+                ForwardAnalysisInputs.number_of_iterations_for_corrections = 0
+                ForwardAnalysisInputs.subtract_calculated_fse_from_data = False
+                ForwardAnalysisInputs.overwrite_analysis_input_workspace = "override_front"
+                ForwardAnalysisInputs.name_of_subtracted_workspace = "front_subtracted"
 
-                        reduction_helpers.save_fitting_input_workspaces(ForwardAnalysisInputs)
+                reduction_helpers.save_fitting_input_workspaces(ForwardAnalysisInputs)
 
             self.assertEqual(mock_save_nexus.call_count, 3)
             saved_paths = [call_args.args[1] for call_args in mock_save_nexus.call_args_list]
@@ -216,20 +223,26 @@ class TestReductionHelpers(unittest.TestCase):
             RenameWorkspace(ncp, "front_subtracted_0_12_ncp")
             GroupWorkspaces(["front_subtracted_0_12_ncp"], OutputWorkspace="front_subtracted_0_ncp_group")
 
-            with patch.object(reduction_helpers, "SaveNexus") as mock_save_nexus:
-                with patch.object(reduction_helpers.fitting_helpers, "calculate_resolution", return_value=MagicMock()):
-                    with patch.object(
-                        reduction_helpers.fitting_helpers,
-                        "isolate_lighest_mass_data",
-                        return_value=(MagicMock(), MagicMock()),
-                    ):
-                        ForwardAnalysisInputs.run_this_scattering_type = True
-                        ForwardAnalysisInputs.number_of_iterations_for_corrections = 0
-                        ForwardAnalysisInputs.subtract_calculated_fse_from_data = False
-                        ForwardAnalysisInputs.overwrite_analysis_input_workspace = "override_front"
-                        ForwardAnalysisInputs.name_of_subtracted_workspace = "front_subtracted"
+            with (
+                patch.object(reduction_helpers, "SaveNexus") as mock_save_nexus,
+                patch.object(
+                    reduction_helpers.fitting_helpers,
+                    "calculate_resolution",
+                    return_value=MagicMock(),
+                ),
+                patch.object(
+                    reduction_helpers.fitting_helpers,
+                    "isolate_lighest_mass_data",
+                    return_value=(MagicMock(), MagicMock()),
+                ),
+            ):
+                ForwardAnalysisInputs.run_this_scattering_type = True
+                ForwardAnalysisInputs.number_of_iterations_for_corrections = 0
+                ForwardAnalysisInputs.subtract_calculated_fse_from_data = False
+                ForwardAnalysisInputs.overwrite_analysis_input_workspace = "override_front"
+                ForwardAnalysisInputs.name_of_subtracted_workspace = "front_subtracted"
 
-                        reduction_helpers.save_fitting_input_workspaces(ForwardAnalysisInputs)
+                reduction_helpers.save_fitting_input_workspaces(ForwardAnalysisInputs)
 
             self.assertEqual(mock_save_nexus.call_count, 3)
             saved_paths = [call_args.args[1] for call_args in mock_save_nexus.call_args_list]
@@ -253,10 +266,10 @@ class TestReductionHelpers(unittest.TestCase):
             FilesManager._experiment_dir = None
 
     def test_convert_dict_to_table(self):
-        d = {'H': {'label': 'H', 'mass': 1, 'intensity': 1}}
+        d = {"H": {"label": "H", "mass": 1, "intensity": 1}}
         table = reduction_helpers._convert_dict_to_table(d)
-        self.assertEqual(['label', 'mass', 'intensity'], table.getColumnNames())
-        self.assertEqual({'label': 'H', 'mass': 1, 'intensity': 1}, table.row(0))
+        self.assertEqual(["label", "mass", "intensity"], table.getColumnNames())
+        self.assertEqual({"label": "H", "mass": 1, "intensity": 1}, table.row(0))
 
     def test_mask_time_of_flight_bins_with_zeros(self):
         data_x = np.arange(10).reshape(1, -1) * np.ones((3, 1))
@@ -270,7 +283,7 @@ class TestReductionHelpers(unittest.TestCase):
         workspace_mock.dataX.side_effect = lambda i: actual_data_x[i]
         workspace_mock.mutableY.side_effect = lambda i: actual_data_y[i]
         workspace_mock.getNumberHistograms.return_value = 3
-        inputs_class = Mock(mask_time_of_flight_range='4.5-7.3')
+        inputs_class = Mock(mask_time_of_flight_range="4.5-7.3")
         with patch.object(reduction_helpers, "mtd", {"workspace": workspace_mock}):
             reduction_helpers.mask_time_of_flight_bins_with_zeros("workspace", inputs_class)
 
@@ -279,7 +292,6 @@ class TestReductionHelpers(unittest.TestCase):
         expected_data_y = np.ones((3, 10))
         expected_data_y[(data_x >= 4.5) & (data_x <= 7.3)] = 0
         np.testing.assert_allclose(actual_data_y, expected_data_y)
-
 
     def test_mask_time_of_flight_bins_with_zeros_several_ranges(self):
         data_x = np.arange(0, 10, 0.5).reshape(1, -1) * np.ones((3, 1))
@@ -294,7 +306,7 @@ class TestReductionHelpers(unittest.TestCase):
         workspace_mock.mutableY.side_effect = lambda i: actual_data_y[i]
         workspace_mock.getNumberHistograms.return_value = 3
 
-        inputs_class = Mock(mask_time_of_flight_range='1.1-3,3.5,  4.5-7.3, 9')
+        inputs_class = Mock(mask_time_of_flight_range="1.1-3,3.5,  4.5-7.3, 9")
         with patch.object(reduction_helpers, "mtd", {"workspace": workspace_mock}):
             reduction_helpers.mask_time_of_flight_bins_with_zeros("workspace", inputs_class)
 
@@ -318,16 +330,76 @@ class TestReductionHelpers(unittest.TestCase):
         profiles_table_mock = MagicMock()
         profiles_table_mock.rowCount.return_value = 4
         profiles_table_mock.row.side_effect = [
-            {"label": "1.0079", "mass": 1.0078, "intensity": 1.0, "intensity_lb": 0, "intensity_ub": np.inf, "width": 4.699, "width_lb": 3, "width_ub": 6, "center": 0.0, "center_lb": -3, "center_ub": 1},
-            {"label": "16.0", "mass": 16.0, "intensity": 1.0, "intensity_lb": 0, "intensity_ub": np.inf, "width": 12, "width_lb": 0, "width_ub": np.inf, "center": 0.0, "center_lb": -3, "center_ub": 1},
-            {"label": "12.0", "mass": 12.0, "intensity": 1.0, "intensity_lb": 0, "intensity_ub": np.inf, "width": 8, "width_lb": 0, "width_ub": np.inf, "center": 0.0, "center_lb": -3, "center_ub": 1},
-            {"label": "27.0", "mass": 27.0, "intensity": 1.0, "intensity_lb": 0, "intensity_ub": np.inf, "width": 13, "width_lb": 0, "width_ub": np.inf, "center": 0.0, "center_lb": -3, "center_ub": 1},
+            {
+                "label": "1.0079",
+                "mass": 1.0078,
+                "intensity": 1.0,
+                "intensity_lb": 0,
+                "intensity_ub": np.inf,
+                "width": 4.699,
+                "width_lb": 3,
+                "width_ub": 6,
+                "center": 0.0,
+                "center_lb": -3,
+                "center_ub": 1,
+            },
+            {
+                "label": "16.0",
+                "mass": 16.0,
+                "intensity": 1.0,
+                "intensity_lb": 0,
+                "intensity_ub": np.inf,
+                "width": 12,
+                "width_lb": 0,
+                "width_ub": np.inf,
+                "center": 0.0,
+                "center_lb": -3,
+                "center_ub": 1,
+            },
+            {
+                "label": "12.0",
+                "mass": 12.0,
+                "intensity": 1.0,
+                "intensity_lb": 0,
+                "intensity_ub": np.inf,
+                "width": 8,
+                "width_lb": 0,
+                "width_ub": np.inf,
+                "center": 0.0,
+                "center_lb": -3,
+                "center_ub": 1,
+            },
+            {
+                "label": "27.0",
+                "mass": 27.0,
+                "intensity": 1.0,
+                "intensity_lb": 0,
+                "intensity_ub": np.inf,
+                "width": 13,
+                "width_lb": 0,
+                "width_ub": np.inf,
+                "center": 0.0,
+                "center_lb": -3,
+                "center_ub": 1,
+            },
         ]
 
         result_table = reduction_helpers.fix_profile_parameters(means_table_mock, profiles_table_mock, h_ratio=14.7)
         self.assertEqual(
             result_table.row(0),
-            {"label": "1.0079", "mass": 1.0077999830245972, "intensity": 0.8839251399040222, "intensity_lb": 0.0, "intensity_ub": np.inf, "width": 4.698999881744385, "width_lb": 3.0, "width_ub": 6.0, "center": 0.0, "center_lb": -3.0, "center_ub": 1.0},
+            {
+                "label": "1.0079",
+                "mass": 1.0077999830245972,
+                "intensity": 0.8839251399040222,
+                "intensity_lb": 0.0,
+                "intensity_ub": np.inf,
+                "width": 4.698999881744385,
+                "width_lb": 3.0,
+                "width_ub": 6.0,
+                "center": 0.0,
+                "center_lb": -3.0,
+                "center_ub": 1.0,
+            },
         )
 
     def test_fix_profile_parameters_without_H(self):
@@ -341,9 +413,45 @@ class TestReductionHelpers(unittest.TestCase):
         profiles_table_mock = MagicMock()
         profiles_table_mock.rowCount.return_value = 3
         profiles_table_mock.row.side_effect = [
-            {"label": "16.0", "mass": 16.0, "intensity": 1.0, "intensity_lb": 0, "intensity_ub": np.inf, "width": 12, "width_lb": 0, "width_ub": np.inf, "center": 0.0, "center_lb": -3, "center_ub": 1},
-            {"label": "12.0", "mass": 12.0, "intensity": 1.0, "intensity_lb": 0, "intensity_ub": np.inf, "width": 8, "width_lb": 0, "width_ub": np.inf, "center": 0.0, "center_lb": -3, "center_ub": 1},
-            {"label": "27.0", "mass": 27.0, "intensity": 1.0, "intensity_lb": 0, "intensity_ub": np.inf, "width": 13, "width_lb": 0, "width_ub": np.inf, "center": 0.0, "center_lb": -3, "center_ub": 1},
+            {
+                "label": "16.0",
+                "mass": 16.0,
+                "intensity": 1.0,
+                "intensity_lb": 0,
+                "intensity_ub": np.inf,
+                "width": 12,
+                "width_lb": 0,
+                "width_ub": np.inf,
+                "center": 0.0,
+                "center_lb": -3,
+                "center_ub": 1,
+            },
+            {
+                "label": "12.0",
+                "mass": 12.0,
+                "intensity": 1.0,
+                "intensity_lb": 0,
+                "intensity_ub": np.inf,
+                "width": 8,
+                "width_lb": 0,
+                "width_ub": np.inf,
+                "center": 0.0,
+                "center_lb": -3,
+                "center_ub": 1,
+            },
+            {
+                "label": "27.0",
+                "mass": 27.0,
+                "intensity": 1.0,
+                "intensity_lb": 0,
+                "intensity_ub": np.inf,
+                "width": 13,
+                "width_lb": 0,
+                "width_ub": np.inf,
+                "center": 0.0,
+                "center_lb": -3,
+                "center_ub": 1,
+            },
         ]
 
         result_table = reduction_helpers.fix_profile_parameters(means_table_mock, profiles_table_mock, h_ratio=14.7)
@@ -364,9 +472,8 @@ class TestReductionHelpers(unittest.TestCase):
         ]
 
         for masses in invalid_cases:
-            with self.subTest(masses=masses):
-                with self.assertRaises(AssertionError):
-                    reduction_helpers.is_hydrogen_present(masses)
+            with self.subTest(masses=masses), self.assertRaises(AssertionError):
+                reduction_helpers.is_hydrogen_present(masses)
 
     def test_create_profiles_table(self):
 
@@ -375,30 +482,34 @@ class TestReductionHelpers(unittest.TestCase):
         mock_ai.initial_fitting_parameters = [1, 5, 0, 1, 10, 0, 1, 13, 0]
         mock_ai.fitting_bounds = [[0, None], [2, 6], [-1, 3], [0, None], [8, 12], [-1, 3], [0, np.inf], [11, 15], [-1, 3]]
 
-        with patch('mvesuvio.util.reduction_helpers.CreateEmptyTableWorkspace') as mock_create_table_ws:
+        with patch("mvesuvio.util.reduction_helpers.CreateEmptyTableWorkspace") as mock_create_table_ws:
             table_mock = MagicMock()
             mock_create_table_ws.return_value = table_mock
 
             reduction_helpers.create_profiles_table(table_mock, mock_ai)
 
-            table_mock.addColumn.assert_has_calls([
-                call(type='str', name='label'),
-                call(type='float', name='mass'),
-                call(type='float', name='intensity'),
-                call(type='float', name='intensity_lb'),
-                call(type='float', name='intensity_ub'),
-                call(type='float', name='width'),
-                call(type='float', name='width_lb'),
-                call(type='float', name='width_ub'),
-                call(type='float', name='center'),
-                call(type='float', name='center_lb'),
-                call(type='float', name='center_ub')
-            ])
-            table_mock.addRow.assert_has_calls([
-                call(['1.0', 1.0, 1.0, 0.0, np.inf, 5.0, 2.0, 6.0, 0.0, -1.0, 3.0]),
-                call(['12.0', 12.0, 1.0, 0.0, np.inf, 10.0, 8.0, 12.0, 0.0, -1.0, 3.0]),
-                call(['16.0', 16.0, 1.0, 0.0, np.inf, 13.0, 11.0, 15.0, 0.0, -1.0, 3.0])
-            ])
+            table_mock.addColumn.assert_has_calls(
+                [
+                    call(type="str", name="label"),
+                    call(type="float", name="mass"),
+                    call(type="float", name="intensity"),
+                    call(type="float", name="intensity_lb"),
+                    call(type="float", name="intensity_ub"),
+                    call(type="float", name="width"),
+                    call(type="float", name="width_lb"),
+                    call(type="float", name="width_ub"),
+                    call(type="float", name="center"),
+                    call(type="float", name="center_lb"),
+                    call(type="float", name="center_ub"),
+                ]
+            )
+            table_mock.addRow.assert_has_calls(
+                [
+                    call(["1.0", 1.0, 1.0, 0.0, np.inf, 5.0, 2.0, 6.0, 0.0, -1.0, 3.0]),
+                    call(["12.0", 12.0, 1.0, 0.0, np.inf, 10.0, 8.0, 12.0, 0.0, -1.0, 3.0]),
+                    call(["16.0", 16.0, 1.0, 0.0, np.inf, 13.0, 11.0, 15.0, 0.0, -1.0, 3.0]),
+                ]
+            )
 
     def test_is_hydrogen_present(self):
         valid_cases = [
@@ -413,22 +524,17 @@ class TestReductionHelpers(unittest.TestCase):
 
     def test_ws_history_matches_inputs_invalid_path(self):
         path = Path("notthere.nxs")
-        with patch('mvesuvio.util.reduction_helpers.logger') as mock_logger:
+        with patch("mvesuvio.util.reduction_helpers.logger") as mock_logger:
             match = reduction_helpers.ws_history_matches_inputs(0, 0, 0, path)
-            mock_logger.notice.assert_has_calls([call('Cached workspace not found at notthere.nxs')])
+            mock_logger.notice.assert_has_calls([call("Cached workspace not found at notthere.nxs")])
             self.assertFalse(match)
 
-
-    @patch('mvesuvio.util.reduction_helpers.DeleteWorkspace')
-    @patch('mvesuvio.util.reduction_helpers.Load')
+    @patch("mvesuvio.util.reduction_helpers.DeleteWorkspace")
+    @patch("mvesuvio.util.reduction_helpers.Load")
     def test_ws_history_matches_inputs(self, mock_load, mock_delete):
         path = Mock()
         path.is_file.return_value = True
-        props = {
-            "Filename": "1234-1235",
-            "Mode": Mode.SINGLE_DIFFERENCE,
-            "InstrumentParFile": "ip_par.txt"
-        }
+        props = {"Filename": "1234-1235", "Mode": Mode.SINGLE_DIFFERENCE, "InstrumentParFile": "ip_par.txt"}
         mock_metadata = Mock()
         mock_metadata.getPropertyValue.side_effect = lambda key: props[key]
         mock_history = Mock()
@@ -438,16 +544,28 @@ class TestReductionHelpers(unittest.TestCase):
         mock_load.return_value = mock_ws
 
         cases = [
-            ("0000", Mode.SINGLE_DIFFERENCE, "ip_par.txt", False, 'Filename in saved workspace did not match: 1234-1235 and 0000'),
-            ("1234-1235", Mode.DOUBLE_DIFFERENCE, "ip_par.txt", False, 'Mode in saved workspace did not match: SingleDifference and DoubleDifference'),
-            ("1234-1235", Mode.SINGLE_DIFFERENCE, "new_par.txt", False, 'IP files in saved workspace did not match: ip_par.txt and new_par.txt'),
-            ("1234-1235", Mode.SINGLE_DIFFERENCE, "ip_par.txt", True, '\nLocally saved workspace metadata matched with analysis inputs.\n'),
+            ("0000", Mode.SINGLE_DIFFERENCE, "ip_par.txt", False, "Filename in saved workspace did not match: 1234-1235 and 0000"),
+            (
+                "1234-1235",
+                Mode.DOUBLE_DIFFERENCE,
+                "ip_par.txt",
+                False,
+                "Mode in saved workspace did not match: SingleDifference and DoubleDifference",
+            ),
+            (
+                "1234-1235",
+                Mode.SINGLE_DIFFERENCE,
+                "new_par.txt",
+                False,
+                "IP files in saved workspace did not match: ip_par.txt and new_par.txt",
+            ),
+            ("1234-1235", Mode.SINGLE_DIFFERENCE, "ip_par.txt", True, "\nLocally saved workspace metadata matched with analysis inputs.\n"),
         ]
 
         for runs, mode, ip_file, expected, expected_message in cases:
             with self.subTest(runs=runs, mode=mode, ip_file=ip_file):
                 mock_delete.reset_mock()
-                with patch('mvesuvio.util.reduction_helpers.logger') as mock_logger:
+                with patch("mvesuvio.util.reduction_helpers.logger") as mock_logger:
                     match = reduction_helpers.ws_history_matches_inputs(runs, mode, ip_file, path)
                     mock_logger.notice.assert_has_calls([call(expected_message)])
                     self.assertEqual(match, expected)
@@ -456,30 +574,45 @@ class TestReductionHelpers(unittest.TestCase):
                     else:
                         mock_delete.assert_not_called()
 
-
-    @patch('mvesuvio.util.reduction_helpers.SaveNexus')
-    @patch('mvesuvio.util.reduction_helpers.LoadVesuvio')
+    @patch("mvesuvio.util.reduction_helpers.SaveNexus")
+    @patch("mvesuvio.util.reduction_helpers.LoadVesuvio")
     def test_save_ws_from_load_vesuvio_backward(self, mock_load_vesuvio, mock_save_nexus):
-        path = Path(f'notthere/raw_{Tags.BACKWARD}.nxs')
+        path = Path(f"notthere/raw_{Tags.BACKWARD}.nxs")
         reduction_helpers.save_ws_from_load_vesuvio("1234", Mode.SINGLE_DIFFERENCE, "ipfile.txt", path)
-        mock_load_vesuvio.assert_has_calls([
-            call(Filename='1234', SpectrumList='3-134', Mode=Mode.SINGLE_DIFFERENCE, InstrumentParFile='ipfile.txt', OutputWorkspace=f'raw_{Tags.BACKWARD}.nxs', LoadLogFiles=False)
-        ])
+        mock_load_vesuvio.assert_has_calls(
+            [
+                call(
+                    Filename="1234",
+                    SpectrumList="3-134",
+                    Mode=Mode.SINGLE_DIFFERENCE,
+                    InstrumentParFile="ipfile.txt",
+                    OutputWorkspace=f"raw_{Tags.BACKWARD}.nxs",
+                    LoadLogFiles=False,
+                )
+            ]
+        )
         _, kwargs = mock_save_nexus.call_args
         self.assertEqual(kwargs["Filename"], str(path.absolute()))
 
-
-    @patch('mvesuvio.util.reduction_helpers.SaveNexus')
-    @patch('mvesuvio.util.reduction_helpers.LoadVesuvio')
+    @patch("mvesuvio.util.reduction_helpers.SaveNexus")
+    @patch("mvesuvio.util.reduction_helpers.LoadVesuvio")
     def test_save_ws_from_load_vesuvio_forward(self, mock_load_vesuvio, mock_save_nexus):
-        path = Path(f'notthere/raw_{Tags.FORWARD}.nxs')
+        path = Path(f"notthere/raw_{Tags.FORWARD}.nxs")
         reduction_helpers.save_ws_from_load_vesuvio("1234", Mode.SINGLE_DIFFERENCE, "ipfile.txt", path)
-        mock_load_vesuvio.assert_has_calls([
-            call(Filename='1234', SpectrumList="135-198", Mode=Mode.SINGLE_DIFFERENCE, InstrumentParFile='ipfile.txt', OutputWorkspace=f'raw_{Tags.FORWARD}.nxs', LoadLogFiles=False)
-        ])
-        args, kwargs = mock_save_nexus.call_args
+        mock_load_vesuvio.assert_has_calls(
+            [
+                call(
+                    Filename="1234",
+                    SpectrumList="135-198",
+                    Mode=Mode.SINGLE_DIFFERENCE,
+                    InstrumentParFile="ipfile.txt",
+                    OutputWorkspace=f"raw_{Tags.FORWARD}.nxs",
+                    LoadLogFiles=False,
+                )
+            ]
+        )
+        _args, kwargs = mock_save_nexus.call_args
         self.assertEqual(kwargs["Filename"], str(path.absolute()))
-
 
     def test_load_and_save_input_ws_if_not_on_path_backward(self):
         class BackwardInputs:
@@ -495,25 +628,31 @@ class TestReductionHelpers(unittest.TestCase):
         raw_path = reduction_inputs_dir / raw_filename
         empty_path = reduction_inputs_dir / empty_filename
 
-        with patch.object(reduction_helpers.FilesManager, "get_reduction_inputs_dir", return_value=reduction_inputs_dir), \
-            patch.object(reduction_helpers.FilesManager, "get_backward_raw_filename", return_value=raw_filename), \
-            patch.object(reduction_helpers.FilesManager, "get_backward_empty_filename", return_value=empty_filename), \
-            patch.object(reduction_helpers.FilesManager, "get_instrument_parameters_dir", return_value=Path("/tmp/ip")), \
-            patch.object(reduction_helpers, "ws_history_matches_inputs", side_effect=[False, False]) as mock_matches, \
-            patch.object(reduction_helpers, "save_ws_from_load_vesuvio") as mock_save_ws:
+        with (
+            patch.object(reduction_helpers.FilesManager, "get_reduction_inputs_dir", return_value=reduction_inputs_dir),
+            patch.object(reduction_helpers.FilesManager, "get_backward_raw_filename", return_value=raw_filename),
+            patch.object(reduction_helpers.FilesManager, "get_backward_empty_filename", return_value=empty_filename),
+            patch.object(reduction_helpers.FilesManager, "get_instrument_parameters_dir", return_value=Path("/tmp/ip")),
+            patch.object(reduction_helpers, "ws_history_matches_inputs", side_effect=[False, False]) as mock_matches,
+            patch.object(reduction_helpers, "save_ws_from_load_vesuvio") as mock_save_ws,
+        ):
             result_raw_path, result_empty_path = reduction_helpers.store_input_ws_if_not_on_path(BackwardInputs)
 
         self.assertEqual(result_raw_path, raw_path)
         self.assertEqual(result_empty_path, empty_path)
-        mock_matches.assert_has_calls([
-            call("1234", Mode.SINGLE_DIFFERENCE, "ipfile.txt", raw_path),
-            call("5678", Mode.SINGLE_DIFFERENCE, "ipfile.txt", empty_path),
-        ])
+        mock_matches.assert_has_calls(
+            [
+                call("1234", Mode.SINGLE_DIFFERENCE, "ipfile.txt", raw_path),
+                call("5678", Mode.SINGLE_DIFFERENCE, "ipfile.txt", empty_path),
+            ]
+        )
         ipfile_path = str(Path("/tmp/ip/ipfile.txt"))
-        mock_save_ws.assert_has_calls([
-            call("1234", Mode.SINGLE_DIFFERENCE, ipfile_path, raw_path),
-            call("5678", Mode.SINGLE_DIFFERENCE, ipfile_path, empty_path),
-        ])
+        mock_save_ws.assert_has_calls(
+            [
+                call("1234", Mode.SINGLE_DIFFERENCE, ipfile_path, raw_path),
+                call("5678", Mode.SINGLE_DIFFERENCE, ipfile_path, empty_path),
+            ]
+        )
 
     def test_store_input_ws_if_not_on_path_rejects_unknown_scattering_type(self):
         class InvalidInputs:
@@ -524,7 +663,6 @@ class TestReductionHelpers(unittest.TestCase):
             self.assertRaisesRegex(ValueError, "Input class for workspace not valid: InvalidInputs"),
         ):
             reduction_helpers.store_input_ws_if_not_on_path(InvalidInputs)
-
 
     def test_load_and_save_input_ws_if_not_on_path_forward_uses_cached_files(self):
         class ForwardInputs:
@@ -540,25 +678,29 @@ class TestReductionHelpers(unittest.TestCase):
         raw_path = reduction_inputs_dir / raw_filename
         empty_path = reduction_inputs_dir / empty_filename
 
-        with patch.object(reduction_helpers.FilesManager, "get_reduction_inputs_dir", return_value=reduction_inputs_dir), \
-            patch.object(reduction_helpers.FilesManager, "get_forward_raw_filename", return_value=raw_filename), \
-            patch.object(reduction_helpers.FilesManager, "get_forward_empty_filename", return_value=empty_filename), \
-            patch.object(reduction_helpers.FilesManager, "get_instrument_parameters_dir", return_value=Path("/tmp/ip")), \
-            patch.object(reduction_helpers, "ws_history_matches_inputs", return_value=True) as mock_matches, \
-            patch.object(reduction_helpers, "save_ws_from_load_vesuvio") as mock_save_ws:
+        with (
+            patch.object(reduction_helpers.FilesManager, "get_reduction_inputs_dir", return_value=reduction_inputs_dir),
+            patch.object(reduction_helpers.FilesManager, "get_forward_raw_filename", return_value=raw_filename),
+            patch.object(reduction_helpers.FilesManager, "get_forward_empty_filename", return_value=empty_filename),
+            patch.object(reduction_helpers.FilesManager, "get_instrument_parameters_dir", return_value=Path("/tmp/ip")),
+            patch.object(reduction_helpers, "ws_history_matches_inputs", return_value=True) as mock_matches,
+            patch.object(reduction_helpers, "save_ws_from_load_vesuvio") as mock_save_ws,
+        ):
             result_raw_path, result_empty_path = reduction_helpers.store_input_ws_if_not_on_path(ForwardInputs)
 
         self.assertEqual(result_raw_path, raw_path)
         self.assertEqual(result_empty_path, empty_path)
-        mock_matches.assert_has_calls([
-            call("2345", Mode.SINGLE_DIFFERENCE, "ipfile.txt", raw_path),
-            call("6789", Mode.SINGLE_DIFFERENCE, "ipfile.txt", empty_path),
-        ])
+        mock_matches.assert_has_calls(
+            [
+                call("2345", Mode.SINGLE_DIFFERENCE, "ipfile.txt", raw_path),
+                call("6789", Mode.SINGLE_DIFFERENCE, "ipfile.txt", empty_path),
+            ]
+        )
         mock_save_ws.assert_not_called()
 
-    @patch('mvesuvio.util.reduction_helpers.SumSpectra')
-    @patch('mvesuvio.util.reduction_helpers.Load')
-    @patch('mvesuvio.util.reduction_helpers.store_input_ws_if_not_on_path')
+    @patch("mvesuvio.util.reduction_helpers.SumSpectra")
+    @patch("mvesuvio.util.reduction_helpers.Load")
+    @patch("mvesuvio.util.reduction_helpers.store_input_ws_if_not_on_path")
     def test_load_input_ws_loads_raw_and_empty_workspaces(self, mock_store, mock_load, mock_sum_spectra):
         class DummyInputs:
             name = ScatteringType.BACKWARD.value
@@ -575,14 +717,18 @@ class TestReductionHelpers(unittest.TestCase):
 
         self.assertEqual(result, ("experiment_raw_backward", "experiment_empty_backward"))
         mock_store.assert_called_once_with(DummyInputs)
-        mock_load.assert_has_calls([
-            call(Filename=str(raw_path), OutputWorkspace="experiment_raw_backward"),
-            call(Filename=str(empty_path), OutputWorkspace="experiment_empty_backward"),
-        ])
-        mock_sum_spectra.assert_has_calls([
-            call(InputWorkspace="experiment_raw_backward", OutputWorkspace="experiment_raw_backward_sum"),
-            call(InputWorkspace="experiment_empty_backward", OutputWorkspace="experiment_empty_backward_sum"),
-        ])
+        mock_load.assert_has_calls(
+            [
+                call(Filename=str(raw_path), OutputWorkspace="experiment_raw_backward"),
+                call(Filename=str(empty_path), OutputWorkspace="experiment_empty_backward"),
+            ]
+        )
+        mock_sum_spectra.assert_has_calls(
+            [
+                call(InputWorkspace="experiment_raw_backward", OutputWorkspace="experiment_raw_backward_sum"),
+                call(InputWorkspace="experiment_empty_backward", OutputWorkspace="experiment_empty_backward_sum"),
+            ]
+        )
 
     def test_convert_to_list_of_spectrum_numbers(self):
         cases = [
@@ -815,7 +961,6 @@ class TestReductionHelpers(unittest.TestCase):
             reduction_helpers.mask_time_of_flight_bins_with_zeros("workspace", inputs)
 
 
-
 class TestRebinMaskedWeighted(unittest.TestCase):
     def tearDown(self):
         AnalysisDataService.clear()
@@ -824,9 +969,7 @@ class TestRebinMaskedWeighted(unittest.TestCase):
         data_x = np.tile([0.5, 1.5, 2.5, 3.5], 2)
         data_y = [1.0, 3.0, 5.0, 7.0, 2.0, 4.0, 6.0, 8.0]
         data_e = np.full(len(data_y), 0.2)
-        ws = CreateWorkspace(
-            DataX=data_x, DataY=data_y, DataE=data_e, NSpec=2, Distribution=True, OutputWorkspace="unmasked_input"
-        )
+        ws = CreateWorkspace(DataX=data_x, DataY=data_y, DataE=data_e, NSpec=2, Distribution=True, OutputWorkspace="unmasked_input")
 
         expected = Rebin(InputWorkspace=ws, Params=[0, 2, 4], OutputWorkspace="ordinary_rebin")
         actual = reduction_helpers.rebin_masked_weighted(ws, [0, 2, 4], "_weighted_rebin")
@@ -841,9 +984,7 @@ class TestRebinMaskedWeighted(unittest.TestCase):
         masked = [1, 3, 6]
         data_y[masked] = 0
         data_e[masked] = 0
-        ws = CreateWorkspace(
-            DataX=data_x, DataY=data_y, DataE=data_e, NSpec=2, Distribution=True, OutputWorkspace="masked_input"
-        )
+        ws = CreateWorkspace(DataX=data_x, DataY=data_y, DataE=data_e, NSpec=2, Distribution=True, OutputWorkspace="masked_input")
 
         actual = reduction_helpers.rebin_masked_weighted(ws, [0, 2, 4], "_weighted_rebin")
 
@@ -861,12 +1002,8 @@ class TestReplaceZerosWithNcp(unittest.TestCase):
         data_y = np.array([[1.0, 0.0, 3.0, 0.0], [2.0, 0.0, 0.0, 0.0]])
         data_e = np.full(data_y.shape, 0.25)
         ncp_y = np.array([[10.0, 20.0, 30.0, 40.0]])
-        ws = CreateWorkspace(
-            DataX=data_x, DataY=data_y, DataE=data_e, NSpec=2, OutputWorkspace="replace_input"
-        )
-        ncp = CreateWorkspace(
-            DataX=[0.5, 1.5, 2.5, 3.5], DataY=ncp_y[0], DataE=np.ones(4), NSpec=1, OutputWorkspace="replace_ncp"
-        )
+        ws = CreateWorkspace(DataX=data_x, DataY=data_y, DataE=data_e, NSpec=2, OutputWorkspace="replace_input")
+        ncp = CreateWorkspace(DataX=[0.5, 1.5, 2.5, 3.5], DataY=ncp_y[0], DataE=np.ones(4), NSpec=1, OutputWorkspace="replace_ncp")
 
         actual = reduction_helpers.replace_zeros_with_ncp(ws, ncp.extractY())
 
@@ -967,9 +1104,7 @@ class TestYSpaceReduction(unittest.TestCase):
         masked_rebin.assert_not_called()
         rebin.assert_called_once_with(InputWorkspace=joy, Params=[0, 2, 4], OutputWorkspace="tof_joy_rebin")
         integrate.assert_called_once_with(rebinned, OutputWorkspace="temp_integral")
-        divide.assert_called_once_with(
-            LHSWorkspace=rebinned, RHSWorkspace="temp_integral", OutputWorkspace="tof_joy_rebin_norm"
-        )
+        divide.assert_called_once_with(LHSWorkspace=rebinned, RHSWorkspace="temp_integral", OutputWorkspace="tof_joy_rebin_norm")
         sum_spectra.assert_called_once_with(
             InputWorkspace=normalised,
             WeightedSum=True,
@@ -1014,7 +1149,7 @@ class TestYSpaceReduction(unittest.TestCase):
             _,
             _,
             joy,
-            rebinned,
+            _,
             normalised,
             averaged,
             _,

@@ -1,55 +1,57 @@
-from contextlib import suppress
-from mantid.kernel import (
-    Direction,
-    StringListValidator,
-    IntArrayBoundedValidator,
-    IntArrayProperty,
-    FloatArrayBoundedValidator,
-    FloatArrayMandatoryValidator,
-    StringMandatoryValidator,
-    FloatArrayProperty,
-    logger,
-)
-from mantid.api import (
-    FileProperty,
-    FileAction,
-    ITableWorkspaceProperty,
-    PropertyMode,
-    Progress,
-    TextAxis,
-    PythonAlgorithm,
-    WorkspaceFactory,
-    AnalysisDataService,
-    WorkspaceGroupProperty,
-)
-from mantid.simpleapi import (
-    CreateEmptyTableWorkspace,
-    DeleteWorkspace,
-    CropWorkspace,
-    RebinToWorkspace,
-    Divide,
-    ReplaceSpecialValues,
-    FindPeaks,
-    GroupWorkspaces,
-    mtd,
-    Plus,
-    FindPeakBackground,
-    ExtractSingleSpectrum,
-    SumSpectra,
-    AppendSpectra,
-    CloneWorkspace,
-    Fit,
-    MaskDetectors,
-    ExtractUnmaskedSpectra,
-    CreateWorkspace,
-)
-from functools import partial
-from mvesuvio.util.calibration_helpers import EVSGlobals, EVSMiscFunctions, InvalidDetectors
-from mvesuvio.globals import Mode, SharedParameterFitType, FitFunction, PeakType
 import os
 import sys
-import scipy.constants
+from contextlib import suppress
+from functools import partial
+
 import numpy as np
+import scipy.constants
+from mantid.api import (
+    AnalysisDataService,
+    FileAction,
+    FileProperty,
+    ITableWorkspaceProperty,
+    Progress,
+    PropertyMode,
+    PythonAlgorithm,
+    TextAxis,
+    WorkspaceFactory,
+    WorkspaceGroupProperty,
+)
+from mantid.kernel import (
+    Direction,
+    FloatArrayBoundedValidator,
+    FloatArrayMandatoryValidator,
+    FloatArrayProperty,
+    IntArrayBoundedValidator,
+    IntArrayProperty,
+    StringListValidator,
+    StringMandatoryValidator,
+    logger,
+)
+from mantid.simpleapi import (
+    AppendSpectra,
+    CloneWorkspace,
+    CreateEmptyTableWorkspace,
+    CreateWorkspace,
+    CropWorkspace,
+    DeleteWorkspace,
+    Divide,
+    ExtractSingleSpectrum,
+    ExtractUnmaskedSpectra,
+    FindPeakBackground,
+    FindPeaks,
+    Fit,
+    GroupWorkspaces,
+    MaskDetectors,
+    Plus,
+    RebinToWorkspace,
+    ReplaceSpecialValues,
+    SumSpectra,
+    mtd,
+)
+
+from mvesuvio.globals import FitFunction, Mode, PeakType, SharedParameterFitType
+from mvesuvio.util.calibration_helpers import EVSGlobals, EVSMiscFunctions, InvalidDetectors
 
 
 class EVSCalibrationFit(PythonAlgorithm):
@@ -86,7 +88,7 @@ class EVSCalibrationFit(PythonAlgorithm):
         spectrum_validator.setUpper(EVSGlobals.DETECTOR_RANGE[1])
         self.declareProperty(
             IntArrayProperty("SpectrumRange", EVSGlobals.DETECTOR_RANGE, spectrum_validator, Direction.Input),
-            doc="Spectrum range to use. Default is the total range (%d,%d)" % tuple(EVSGlobals.DETECTOR_RANGE),
+            doc=f"Spectrum range to use. Default is the total range ({EVSGlobals.DETECTOR_RANGE[0]:d},{EVSGlobals.DETECTOR_RANGE[1]:d})",
         )
 
         self.declareProperty("Mass", 207.19, doc="Mass of the sample in amu to be used when calculating energy. Default is Pb: 207.19")
@@ -100,7 +102,7 @@ class EVSCalibrationFit(PythonAlgorithm):
 
         self.declareProperty(
             FloatArrayProperty("Energy", [EVSGlobals.ENERGY_ESTIMATE], FloatArrayMandatoryValidator(), Direction.Input),
-            doc="List of estimated expected energies for peaks. Optional: the default is %f" % EVSGlobals.ENERGY_ESTIMATE,
+            doc=f"List of estimated expected energies for peaks. Optional: the default is {EVSGlobals.ENERGY_ESTIMATE:f}",
         )
 
         self.declareProperty(
@@ -278,17 +280,17 @@ class EVSCalibrationFit(PythonAlgorithm):
         output_workspaces = []
         for index, estimated_peak_positions in enumerate(estimated_peak_positions_all_spec.transpose()):
             spec_number = self._spec_list[0] + index
-            self._prog_reporter.report("Fitting to spectrum %d" % spec_number)
+            self._prog_reporter.report(f"Fitting to spectrum {spec_number:d}")
 
-            find_peaks_output_name = self._sample + "_peaks_table_%d" % spec_number
-            fit_peaks_output_name = self._output_workspace_name + "_Spec_%d" % spec_number
+            find_peaks_output_name = f"{self._sample}_peaks_table_{spec_number:d}"
+            fit_peaks_output_name = f"{self._output_workspace_name}_Spec_{spec_number:d}"
             fit_results = self._fit_peaks_to_spectra(
                 index, spec_number, estimated_peak_positions, find_peaks_output_name, fit_peaks_output_name
             )
 
             fit_results_unconstrained = None
             if fit_results["status"] != "success":
-                self._prog_reporter.report("Fitting to spectrum %d without constraining parameters" % spec_number)
+                self._prog_reporter.report(f"Fitting to spectrum {spec_number:d} without constraining parameters")
                 fit_results_unconstrained = self._fit_peaks_to_spectra(
                     index,
                     spec_number,
@@ -355,7 +357,7 @@ class EVSCalibrationFit(PythonAlgorithm):
         if unconstrained:
             find_peaks_output_name = self._get_unconstrained_ws_name(find_peaks_output_name)
             fit_peaks_output_name = self._get_unconstrained_ws_name(fit_peaks_output_name)
-            logger.notice("Fitting to spectrum %d without constraining parameters" % spec_number)
+            logger.notice(f"Fitting to spectrum {spec_number:d} without constraining parameters")
 
         find_peaks_input_params = self._get_find_peak_parameters(spec_number, peak_estimates_list, unconstrained)
         logger.notice(str(spec_number) + "   " + str(find_peaks_input_params))
@@ -412,11 +414,10 @@ class EVSCalibrationFit(PythonAlgorithm):
     def _select_best_fit_params(self, spec_num, fit_results, fit_results_u=None):
         selected_params = fit_results["params"]
         unconstrained_fit_selected = False
-        if fit_results_u:
-            if fit_results_u["chi2"] < fit_results["chi2"] and fit_results_u["status"] != "peaks invalid":
-                selected_params = fit_results_u["params"]
-                unconstrained_fit_selected = True
-                self._prog_reporter.report("Fit to spectrum %d without constraining parameters successful" % spec_num)
+        if fit_results_u and fit_results_u["chi2"] < fit_results["chi2"] and fit_results_u["status"] != "peaks invalid":
+            selected_params = fit_results_u["params"]
+            unconstrained_fit_selected = True
+            self._prog_reporter.report(f"Fit to spectrum {spec_num:d} without constraining parameters successful")
         return selected_params, unconstrained_fit_selected
 
     def _output_params_to_table(self, spec_num, num_estimated_peaks, params, output_table_name):
@@ -479,10 +480,7 @@ class EVSCalibrationFit(PythonAlgorithm):
         check_peak_positions = self._check_peak_positions(table_name, estimated_peaks)
         check_peak_heights = self._check_peak_heights(table_name, peak_height_abs_threshold, peak_height_rel_threshold)
 
-        if check_nans and check_peak_positions and check_peak_heights:
-            return True
-        else:
-            return False
+        return bool(check_nans and check_peak_positions and check_peak_heights)
 
     def _check_nans(self, table_name):
         table_ws = mtd[table_name]
@@ -515,10 +513,7 @@ class EVSCalibrationFit(PythonAlgorithm):
     def _evaluate_peak_height_against_bg(self, height, position, linear_bg_A0, linear_bg_A1, rel_threshold, abs_threshold):
         bg = position * linear_bg_A1 + linear_bg_A0
         required_height = bg * rel_threshold + abs_threshold
-        if height < required_height:
-            return False
-        else:
-            return True
+        return not height < required_height
 
     def _check_peak_heights(self, table_name, abs_threshold_over_bg, rel_threshold_over_bg):
         height_str = self._func_param_names["Height"]
@@ -557,7 +552,7 @@ class EVSCalibrationFit(PythonAlgorithm):
             for position_index, (position, height) in enumerate(
                 zip(mtd[unfiltered_fits_ws_name].column(2), mtd[unfiltered_fits_ws_name].column(1))
             ):
-                if not position == 0 and self._evaluate_peak_height_against_bg(
+                if position != 0 and self._evaluate_peak_height_against_bg(
                     height, position, linear_bg_A0, linear_bg_A1, peak_height_abs_threshold, peak_height_rel_threshold
                 ):
                     peak_estimate_deltas.append((peak_estimate_index, position_index, abs(position - peak_estimate)))
@@ -668,7 +663,7 @@ class EVSCalibrationFit(PythonAlgorithm):
 
         for peak_index, estimated_peak_positions in enumerate(estimated_peak_positions_all_peaks):
             self._peak_fit_workspaces_by_spec = []
-            output_parameter_table_name = self._output_workspace_name + "_Peak_%d_Parameters" % peak_index
+            output_parameter_table_name = f"{self._output_workspace_name}_Peak_{peak_index:d}_Parameters"
             output_parameter_table_headers = self._create_parameter_table_and_output_headers(output_parameter_table_name)
             for spec_index, peak_position in enumerate(estimated_peak_positions):
                 fit_workspace_name = self._fit_peak(
@@ -711,13 +706,13 @@ class EVSCalibrationFit(PythonAlgorithm):
 
     def _fit_peak(self, peak_index, spec_index, peak_position, output_parameter_table_name, output_parameter_table_headers):
         spec_number = self._spec_list[0] + spec_index
-        self._prog_reporter.report("Fitting peak %d to spectrum %d" % (peak_index, spec_number))
+        self._prog_reporter.report(f"Fitting peak {peak_index:d} to spectrum {spec_number:d}")
 
         peak_params = self._find_peaks_and_output_params(peak_index, spec_number, spec_index, peak_position)
         fit_func_string = self._build_function_string(peak_params)
         xmin, xmax = self._find_fit_x_window(peak_params)
-        fit_output_name = "__" + self._output_workspace_name + "_Peak_%d_Spec_%d" % (peak_index, spec_index)
-        status, chi2, ncm, fit_params, fws, func, cost_func = Fit(
+        fit_output_name = f"__{self._output_workspace_name}_Peak_{peak_index:d}_Spec_{spec_index:d}"
+        _status, _chi2, ncm, fit_params, fws, _func, _cost_func = Fit(
             Function=fit_func_string,
             InputWorkspace=self._sample,
             IgnoreInvalidData=True,
@@ -736,7 +731,7 @@ class EVSCalibrationFit(PythonAlgorithm):
         return fit_workspace_name
 
     def _find_peaks_and_output_params(self, peak_index, spec_number, spec_index, peak_position):
-        peak_table_name = "__" + self._sample + "_peaks_table_%d_%d" % (peak_index, spec_index)
+        peak_table_name = f"__{self._sample}_peaks_table_{peak_index:d}_{spec_index:d}"
         find_peak_params = self._get_find_peak_parameters(spec_number, [peak_position])
         FindPeaks(InputWorkspace=self._sample, WorkspaceIndex=spec_index, PeaksList=peak_table_name, **find_peak_params)
         if mtd[peak_table_name].rowCount() == 0:
@@ -823,7 +818,7 @@ class EVSCalibrationFit(PythonAlgorithm):
 
         print("starting global fit")
 
-        status, chi2, ncm, params, fws, func, cost_func = Fit(
+        _status, _chi2, ncm, params, fws, _func, _cost_func = Fit(
             Function=func_string,
             InputWorkspace=out_ws,
             IgnoreInvalidData=True,
@@ -834,7 +829,7 @@ class EVSCalibrationFit(PythonAlgorithm):
             Minimizer="SteepestDescent,RelError=1e-8",
             **added_args,
         )
-        [DeleteWorkspace(f"{self._sample}_Spec_{i}") for i in range(0, n_valid_specs)]
+        [DeleteWorkspace(f"{self._sample}_Spec_{i}") for i in range(n_valid_specs)]
 
         fit_values = dict(zip(params.column(0), params.column(1)))
         fit_errors = dict(zip(params.column(0), params.column(2)))
@@ -879,15 +874,10 @@ class EVSCalibrationFit(PythonAlgorithm):
                 find_peak_params["FWHM"] = 5
 
         elif not self._fitting_bragg_peaks:
+            half_peak_window = 60  # just be recoil
             if self._fitting_resonance_peaks:
                 # 25 seems to be able to fit the final peak in the first backscattering spectrum
-                if spec_number >= EVSGlobals.FRONTSCATTERING_RANGE[0]:
-                    half_peak_window = 20
-                else:
-                    half_peak_window = 25
-            else:
-                # #ust be recoil
-                half_peak_window = 60
+                half_peak_window = 20 if spec_number >= EVSGlobals.FRONTSCATTERING_RANGE[0] else 25
 
             fit_windows = [[peak - half_peak_window, peak + half_peak_window] for peak in peak_centre]
             # flatten the list: http://stackoverflow.com/questions/952914/making-a-flat-list-out-of-list-of-lists-in-python
@@ -1011,8 +1001,8 @@ class EVSCalibrationFit(PythonAlgorithm):
         @return the function string
         """
 
-        bkg_intercept, bkg_graident = peak["A0"], peak["A1"]
-        fit_func = "name=LinearBackground, A0=%f, A1=%f" % (bkg_intercept, bkg_graident)
+        bkg_intercept, bkg_gradient = peak["A0"], peak["A1"]
+        fit_func = f"name=LinearBackground, A0={bkg_intercept:f}, A1={bkg_gradient:f}"
         fit_func += ";"
 
         return fit_func
@@ -1025,7 +1015,7 @@ class EVSCalibrationFit(PythonAlgorithm):
         @return the function string
         """
 
-        fit_func = "name=%s, " % self._peak_function
+        fit_func = f"name={self._peak_function}, "
 
         prefix = ""  # f0.'
         func_list = [name + "=" + str(peak[prefix + name]) for name in self._func_param_names.values()]
@@ -1097,7 +1087,7 @@ class EVSCalibrationFit(PythonAlgorithm):
         group_ws_names = []
 
         for i, peak_fits in enumerate(fit_workspaces):
-            ws_name = self._output_workspace_name + "_%d_Workspace" % i
+            ws_name = f"{self._output_workspace_name}_{i:d}_Workspace"
             ExtractSingleSpectrum(InputWorkspace=self._sample, WorkspaceIndex=i, OutputWorkspace=ws_name)
 
             # transfer fits to individual spectrum
@@ -1123,7 +1113,7 @@ class EVSCalibrationFit(PythonAlgorithm):
                 peak_collection.setY(j, data_y)
                 peak_collection.setE(j, data_e)
 
-                ax.setLabel(j + 1, "Peak_%d" % (j + 1))
+                ax.setLabel(j + 1, f"Peak_{j + 1:d}")
 
                 DeleteWorkspace(peak)
 

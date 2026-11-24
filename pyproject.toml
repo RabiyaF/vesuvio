@@ -88,13 +88,9 @@ distance-dirty = "{version}.{distance}"
 file = "src/mvesuvio/_version.py"
 
 [tool.ruff]
-exclude = [".git", "build", "buildconfig", "unpackaged", "legacy", "src/mvesuvio/default_config/analysis_inputs.py"]
+include = ["src/**/*.py", "tests/**/*.py"]
 line-length = 140
-
-[tool.ruff.lint]
-ignore = ["F405", "F403"]
 
 [tool.ruff.format]
 skip-magic-trailing-comma = false
 line-ending = "auto"
-exclude = ["tests/unit/**", "tests/system/**"]

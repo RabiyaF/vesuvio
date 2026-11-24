@@ -1,5 +1,7 @@
-import numpy as np
 from sys import maxsize
+
+import numpy as np
+
 from tests.testhelpers.calibration.system_test_base import TestConstants
 
 
@@ -9,7 +11,7 @@ def assert_allclose_excluding_bad_detectors(expected_position, position, rtol, d
     for i, (elem_m, elem_n) in enumerate(zip(expected_position, position)):
         if np.ma.is_masked(elem_m) and np.ma.is_masked(elem_n):  # detector masked
             break
-        detector_specific_rtol = rtol[i] if i in rtol else default_rtol
+        detector_specific_rtol = rtol.get(i, default_rtol)
         try:
             np.testing.assert_allclose(elem_m, elem_n, detector_specific_rtol, atol=0)
         except AssertionError:

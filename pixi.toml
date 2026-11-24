@@ -33,7 +33,6 @@ twine = "*"
 ruff = "*"
 pre-commit = "*"
 coverage = "*"
-mock = "*"
 coveralls = "*"
 versioningit = "*"
 
@@ -47,8 +46,8 @@ test-calibration-unit = "PYTHONPATH=src python -m unittest discover -s tests/uni
 test-calibration-system = "PYTHONPATH=src python -m unittest discover -s tests/system/calibration -t ."
 test-unit-coverage = "PYTHONPATH=src coverage run -m unittest discover -s tests/unit -t . && coverage report"
 default-analysis-inputs = "PYTHONPATH=src python src/mvesuvio/default_config/experiment_template/run_reduction.py"
-lint = "ruff check src tests"
-format = "ruff format src tests"
+lint = "ruff check"
+format = "ruff format"
 dev = "pip install -e ."
 
 [feature.pypi-builder.tasks]

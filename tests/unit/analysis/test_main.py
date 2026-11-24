@@ -177,7 +177,6 @@ class TestSetupConfig(unittest.TestCase):
 
 
 class TestMainFunction(unittest.TestCase):
-
     @patch("mvesuvio.version", return_value="1.2.3")
     def test_main_with_version_command(self, mock_version):
         from mvesuvio.main import main
@@ -311,4 +310,3 @@ class TestRunBootstrap(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

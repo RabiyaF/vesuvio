@@ -14,7 +14,6 @@ from mvesuvio.util import general_helpers
 
 
 class TestGeneralHelpers(unittest.TestCase):
-
     def test_get_scattering_type_returns_backward_enum(self):
         class BackwardInputs:
             mode = Mode.DOUBLE_DIFFERENCE.value
@@ -114,7 +113,10 @@ class TestGeneralHelpers(unittest.TestCase):
         DeleteWorkspace(ws)
 
     def test_make_summarised_log_file(self):
-        with tempfile.NamedTemporaryFile(delete=False) as mock_mantid_log_file, tempfile.NamedTemporaryFile(delete=False) as mock_summary_file:
+        with (
+            tempfile.NamedTemporaryFile(delete=False) as mock_mantid_log_file,
+            tempfile.NamedTemporaryFile(delete=False) as mock_summary_file,
+        ):
             mock_mantid_log_file.write(
                 dedent(
                     """
@@ -144,9 +146,11 @@ class TestGeneralHelpers(unittest.TestCase):
             mock_mantid_log_file_path = mock_mantid_log_file.name
             mock_summary_file_path = mock_summary_file.name
 
-        with patch("mvesuvio.util.general_helpers.FilesManager.get_mantid_log_file", return_value=mock_mantid_log_file_path):
-            with patch("mvesuvio.util.general_helpers.FilesManager.get_summarised_log_file", return_value=mock_summary_file_path):
-                general_helpers.make_summarised_log_file()
+        with (
+            patch("mvesuvio.util.general_helpers.FilesManager.get_mantid_log_file", return_value=mock_mantid_log_file_path),
+            patch("mvesuvio.util.general_helpers.FilesManager.get_summarised_log_file", return_value=mock_summary_file_path),
+        ):
+            general_helpers.make_summarised_log_file()
 
         with open(mock_summary_file_path, "r", encoding="utf-8") as summary_file:
             current_log_file_content = summary_file.read()

@@ -1,15 +1,15 @@
+import numpy as np
 from mantid.simpleapi import (
-    Rebin,
-    SumSpectra,
-    DeleteWorkspace,
-    VesuvioResolution,
     AppendSpectra,
-    RenameWorkspace,
     CloneWorkspace,
+    DeleteWorkspace,
     MaskDetectors,
+    Rebin,
+    RenameWorkspace,
+    SumSpectra,
+    VesuvioResolution,
     mtd,
 )
-import numpy as np
 
 
 def isolate_lighest_mass_data(initial_ws, ws_group_ncp, subtract_fse=True):
@@ -17,7 +17,7 @@ def isolate_lighest_mass_data(initial_ws, ws_group_ncp, subtract_fse=True):
 
     ws_ncp_names = [n for n in ws_group_ncp.getNames() if n.endswith("ncp")]
     masses = [float(n.split("_")[-2]) for n in ws_ncp_names if "total" not in n]
-    ws_total_ncp_name = [n for n in ws_ncp_names if n.endswith("_total_ncp")][0]
+    ws_total_ncp_name = next(n for n in ws_ncp_names if n.endswith("_total_ncp"))
     ws_lighest_ncp_name = ws_ncp_names[masses.index(min(masses))]
     ws_lighest_ncp = mtd[ws_lighest_ncp_name]
     ws_total_ncp = mtd[ws_total_ncp_name]
@@ -72,4 +72,3 @@ def calculate_resolution(mass, ws, rebin_range):
 def _write_data_y_into_ws(data_y, ws):
     for i in range(ws.getNumberHistograms()):
         ws.dataY(i)[:] = data_y[i, :]
-    return

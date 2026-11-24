@@ -1,5 +1,5 @@
-from mantid.kernel import logger
 import numpy as np
+from mantid.kernel import logger
 
 
 def pseudo_voigt(x, sigma, gamma):

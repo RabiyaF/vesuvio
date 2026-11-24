@@ -1,8 +1,10 @@
+from functools import partialmethod
+from pathlib import Path
+
+from mantid.kernel import ConfigService
+
 from mvesuvio.globals import Tags
 from mvesuvio.util import handle_config
-from pathlib import Path
-from mantid.kernel import ConfigService
-from functools import partialmethod
 
 
 class FilesManager:

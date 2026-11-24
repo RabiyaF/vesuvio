@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import ast
-import dill
 import uuid
 
+import dill
 
 _REGISTRY_PREFIX = "registry:"
 _constraint_registry: dict[str, object] = {}

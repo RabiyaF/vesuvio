@@ -1,36 +1,35 @@
+import contextlib
+import time
+from pathlib import Path
+
+import jacobi
 import matplotlib.pyplot as plt
 import numpy as np
-from mantid.simpleapi import (
-    SumSpectra,
-    Divide,
-    Integration,
-    CloneWorkspace,
-    DeleteWorkspace,
-    CreateWorkspace,
-    CreateEmptyTableWorkspace,
-    SaveAscii,
-    Plus,
-    GroupWorkspaces,
-    mtd,
-    Fit,
-)
-from scipy import optimize
-from scipy import signal
-from pathlib import Path
 from iminuit import Minuit, cost
-from iminuit.util import make_func_code, describe
-import jacobi
-import time
+from iminuit.util import describe, make_func_code
 from mantid.kernel import logger
+from mantid.simpleapi import (
+    CloneWorkspace,
+    CreateEmptyTableWorkspace,
+    CreateWorkspace,
+    DeleteWorkspace,
+    Divide,
+    Fit,
+    GroupWorkspaces,
+    Integration,
+    Plus,
+    SaveAscii,
+    SumSpectra,
+    mtd,
+)
+from scipy import optimize, signal
 
 from mvesuvio.globals import FitModels, Masking
 from mvesuvio.util import handle_config
-from mvesuvio.util.general_helpers import print_table_workspace, extractWS
+from mvesuvio.util.general_helpers import extractWS, print_table_workspace
 
-try:
+with contextlib.suppress(OSError):
     plt.style.use(["ggplot", handle_config.get_plots_config_file()])
-except OSError:
-    pass
 repoPath = Path(__file__).absolute().parent  # Path to the repository
 
 PLOTS_PROJECTION = "mantid"
@@ -69,7 +68,6 @@ class FitInYSpace:
             runGlobalFit(wsJoY, self.ws_resolution, self.fitting_inputs)
 
         save_workspaces(self.fitting_inputs)
-        return
 
 
 def normalise_workspace(ws_name):
@@ -81,10 +79,10 @@ def normalise_workspace(ws_name):
 
 def fitProfileMinuit(yFitIC, wsYSpaceSym, wsRes):
     dataX, dataY, dataE = extractFirstSpectra(wsYSpaceSym)
-    resX, resY, resE = extractFirstSpectra(wsRes)
+    resX, resY, _resE = extractFirstSpectra(wsRes)
     assert np.all(dataX == resX), "Resolution should operate on the same range as DataX"
 
-    model, defaultPars, sharedPars = selectModelAndPars(yFitIC.fitting_model)
+    model, defaultPars, _sharedPars = selectModelAndPars(yFitIC.fitting_model)
 
     xDelta, resDense = oddPointsRes(resX, resY)
 
@@ -164,7 +162,6 @@ def fitProfileMinuit(yFitIC, wsYSpaceSym, wsRes):
     output_name = wsYSpaceSym.name()
     DeleteWorkspace(output_name)
     GroupWorkspaces([ws_name for ws_name in mtd.getObjectNames() if "_minuit_" in ws_name], OutputWorkspace=output_name)
-    return
 
 
 def extractFirstSpectra(ws):
@@ -475,7 +472,6 @@ def saveMinuitPlot(yFitIC, wsMinuitFit, mObj):
     savePath = yFitIC.figSavePath / fileName
     plt.savefig(savePath, bbox_inches="tight")
     plt.close(fig)
-    return
 
 
 def createCorrelationTableWorkspace(wsYSpaceSym, parameters, corrMatrix):
@@ -627,7 +623,6 @@ def resetMinuit(minuitObj, bestFitVals, bestFitErrs):
     for p in bestFitVals:
         minuitObj.values[p] = bestFitVals[p]
         minuitObj.errors[p] = bestFitErrs[p]
-    return
 
 
 def buildVarRange(bound, varVal, varErr):
@@ -693,7 +688,7 @@ def plotAutoMinos(minuitObj, wsName, yFitIC):
     fig.canvas.manager.set_window_title(wsName + "_autominos")
 
     for p, ax in zip(minuitObj.parameters, axs.flat):
-        loc, fvals, status = minuitObj.mnprofile(p, bound=2)
+        loc, fvals, _status = minuitObj.mnprofile(p, bound=2)
 
         minfval = minuitObj.fval
         minp = minuitObj.values[p]
@@ -760,7 +755,6 @@ def createFitParametersTableWorkspace(wsYSpaceSym, parameters, values, errors, m
         tableWS.addRow([p, v, e, mae[0], mae[1], mme[0], mme[1]])
 
     tableWS.addRow(["Cost function", chi2, 0, 0, 0, 0, 0])
-    return
 
 
 def oddPointsRes(x, res):
@@ -771,10 +765,8 @@ def oddPointsRes(x, res):
     assert np.min(x) == -np.max(x), "Resolution needs to be in symetric range!"
     assert x.size == res.size, "x and res need to be the same size!"
 
-    if res.size % 2 == 0:
-        dens = res.size + 1  # If even change to odd
-    else:
-        dens = res.size  # If odd, keep being odd
+    # Ensure an odd number of points.
+    dens = res.size + 1 if res.size % 2 == 0 else res.size
 
     xDense = np.linspace(np.min(x), np.max(x), dens)  # Make gridd with odd number of points - peak at center
     xDelta = xDense[1] - xDense[0]
@@ -1036,7 +1028,6 @@ def checkNGroupsValid(yFitIC, ipData):
             "Number of global groups needs to be less or equal to the no of unmasked spectra."
         )
         assert yFitIC.number_of_global_fit_groups > 0, "NUmber of global groups needs to be bigger than zero"
-    return
 
 
 def kMeansClustering(points, centers):
@@ -1149,7 +1140,6 @@ def plotFinalGroups(ax, ipData, idxList):
     ax.set_xlabel("L1")
     ax.set_ylabel("Theta")
     ax.legend()
-    return
 
 
 # --------- Weighted Avg of detectors
@@ -1230,7 +1220,7 @@ def weightedAvgArr(dataYO, dataEO):
     meanE = np.sqrt(1 / np.nansum(1 / np.square(dataE), axis=0))
 
     # Change invalid data back to original masking format with zeros
-    nanInfMask = (meanE == np.inf) | (meanE == np.nan) | (meanY == np.nan)
+    nanInfMask = np.isinf(meanE) | np.isnan(meanE) | np.isnan(meanY)
     meanY[nanInfMask] = 0
     meanE[nanInfMask] = 0
 
@@ -1321,7 +1311,7 @@ def weightedAvgXBinsArr(dataX, dataY, dataE, xp):
                 mY, mE = weightedAvgArr(allY, allE)  # Outputs masked values as zeros
 
         # DataY and DataE should never reach NaN, but safeguard in case they do
-        if (mE == np.nan) | (mY == np.nan):
+        if np.isnan(mE) or np.isnan(mY):
             mY, mE = 0, 0
 
         meansY[i] = mY
@@ -1359,7 +1349,7 @@ def avgArr(dataYO):
     dataY = dataYO.copy()
     dataY[dataY == 0] = np.nan
     meanY = np.nanmean(dataY, axis=0)
-    meanY[meanY == np.nan] = 0
+    meanY[np.isnan(meanY)] = 0
 
     assert np.all(np.all(dataYO == 0, axis=0) == (meanY == 0)), "Columns of zeros should give zero."
     return meanY
@@ -1397,7 +1387,7 @@ def calcCostFun(model, i, x, y, yerr, res, sharedPars):
     convolvedModel._parameters = {key: None for key in costSig}
 
     # Select only valid data, i.e. when error is not 0 or nan or inf
-    nonZeros = (yerr != 0) & (yerr != np.nan) & (yerr != np.inf) & (y != np.nan)
+    nonZeros = (yerr != 0) & np.isfinite(yerr) & ~np.isnan(y)
     xNZ = x[nonZeros]
     yNZ = y[nonZeros]
     yerrNZ = yerr[nonZeros]
@@ -1453,7 +1443,7 @@ def plot_global_fit(ws_group, yFitIC):
     offset = 0
     vertical_spacing = 0.02
     for ws_name in individual_names:
-        if ws_name.endswith("Parameters") or ws_name.endswith("chi2"):
+        if ws_name.endswith(("Parameters", "chi2")):
             continue
 
         fit_ws = mtd[ws_name]
@@ -1504,7 +1494,7 @@ def save_result_of_global_fit(data_x, data_y, data_e, m, total_cost_fun, ws_name
     pars_table.addColumn(type="int", name="Group")
     signature = describe(total_cost_fun[0])
     for parameter in signature:
-        parameter = parameter[:-1] if parameter.endswith("0") else parameter
+        parameter = parameter.removesuffix("0")
         pars_table.addColumn(type="str", name=parameter)
 
     for i, (x, y, yerr, cost_fun) in enumerate(zip(data_x, data_y, data_e, total_cost_fun)):
@@ -1543,7 +1533,7 @@ def save_result_of_global_fit(data_x, data_y, data_e, m, total_cost_fun, ws_name
 def save_workspaces(yFitIC):
     for ws_name in mtd.getObjectNames():
         save_path = yFitIC.outputs_dir / f"{yFitIC.fitting_model}_fit" / ws_name
-        if ws_name.endswith("Parameters") or ws_name.endswith("CovarianceMatrix"):
+        if ws_name.endswith(("Parameters", "CovarianceMatrix")):
             save_path.parent.mkdir(exist_ok=True, parents=True)
             SaveAscii(ws_name, str(save_path))
         if ws_name.endswith("Workspace"):
